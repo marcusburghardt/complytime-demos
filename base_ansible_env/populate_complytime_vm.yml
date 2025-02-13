@@ -1,0 +1,80 @@
+---
+- name: "Prepare the ComplyTime environment on the Demo VM"
+  hosts: demo_vm
+  become: false
+  vars:
+    # Update according to where https://github.com/complytime/complytime.git was cloned
+    complytime_repo_dest: "~/GIT/ProdSec/complytime"
+    complytime_workspace: "~/.config/complytime"
+
+  tasks:
+    - name: "Lets Pray for the God of Demos"
+      ansible.builtin.debug:
+        msg: "Please, give me power to make this demo work! Or creativity to find good excuses. :)"
+
+    - name: "Build ComplyTime locally"
+      ansible.builtin.command:
+        cmd: "make build"
+        chdir: "{{ complytime_repo_dest }}"
+      delegate_to: localhost
+
+    - name: "Ensure bin directory in home directory to make it easier to call ComplyTime"
+      ansible.builtin.file:
+        path: "~/bin"
+        state: directory
+        mode: "0750"
+
+    - name: "Copy ComplyTime binary to Demo VM"
+      ansible.builtin.copy:
+        src: "{{ complytime_repo_dest }}/bin/complytime"
+        dest: "~/bin/complytime"
+        mode: "0750"
+
+    - name: "Check existing ComplyTime directories in case there is already a Workspace"
+      ansible.builtin.stat:
+        path: "{{ complytime_workspace }}"
+      register: result_complytime_workspace
+
+    - name: "Initialize ComplyTime to ensure the Workspace is created"
+      ansible.builtin.command:
+        cmd: "~/bin/complytime list"
+      failed_when: false
+      changed_when: result_complytime_workspace.stat.exists
+      when: not result_complytime_workspace.stat.exists
+
+    - name: "Copy OSCAL Component Definition to Demo VM"
+      ansible.builtin.copy:
+        src: "sample-component-definition.json"
+        dest: "{{ complytime_workspace }}/bundles"
+        mode: "0640"
+
+    - name: "Copy OSCAL Profile to Demo VM"
+      ansible.builtin.copy:
+        src: "sample-profile.json"
+        dest: "{{ complytime_workspace }}/controls"
+        mode: "0640"
+
+    - name: "Copy OpenSCAP plugin binary to Demo VM"
+      ansible.builtin.copy:
+        src: "{{ complytime_repo_dest }}/bin/openscap-plugin"
+        dest: "{{ complytime_workspace }}/plugins"
+        mode: "0750"
+
+    - name: "Copy OpenSCAP plugin configuration file to Demo VM"
+      ansible.builtin.copy:
+        src: "openscap-plugin.yml"
+        dest: "{{ complytime_workspace }}/plugins"
+        mode: "0640"
+
+    - name: "Compute SHA256 checksum of the openscap-plugin binary"
+      ansible.builtin.stat:
+        path: "{{ complytime_workspace }}/plugins/openscap-plugin"
+        checksum_algorithm: sha256
+      register: result_plugin_checksum
+
+    - name: "Create or Update the openscap-plugin manifest"
+      ansible.builtin.template:
+        src: c2p-openscap-manifest.json.j2
+        dest: "{{ complytime_workspace }}/plugins/c2p-openscap-manifest.json"
+        mode: "0640"
+...
