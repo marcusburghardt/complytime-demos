@@ -43,7 +43,7 @@
           {
             "uuid": "bb6420f5-146c-44c0-b708-79b96e7a009e",
             "source": "file://controls/sample-profile.json",
-            "description": "My example profile.",
+            "description": "Example Profile (low)",
             "props": [
               {
                 "name": "Framework_Short_Name",

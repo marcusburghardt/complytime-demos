@@ -42,18 +42,6 @@
       changed_when: result_complytime_workspace.stat.exists
       when: not result_complytime_workspace.stat.exists
 
-    - name: "Copy OSCAL Component Definition to Demo VM"
-      ansible.builtin.copy:
-        src: "sample-component-definition.json"
-        dest: "{{ complytime_workspace }}/bundles"
-        mode: "0640"
-
-    - name: "Copy OSCAL Profile to Demo VM"
-      ansible.builtin.copy:
-        src: "sample-profile.json"
-        dest: "{{ complytime_workspace }}/controls"
-        mode: "0640"
-
     - name: "Copy OpenSCAP plugin binary to Demo VM"
       ansible.builtin.copy:
         src: "{{ complytime_repo_dest }}/bin/openscap-plugin"

@@ -1,0 +1,34 @@
+---
+- name: "Populate the ComplyTime Demo VM with sample content"
+  hosts: demo_vm
+  become: false
+  vars:
+    profile_file: "sample-profile.json"
+    component_definition_file: "sample-component-definition.json"
+    complytime_workspace: "~/.config/complytime"
+
+  tasks:
+    - name: "Check existing ComplyTime directories in case there is already a Workspace"
+      ansible.builtin.stat:
+        path: "{{ complytime_workspace }}"
+      register: result_complytime_workspace
+
+    - name: "Initialize ComplyTime to ensure the Workspace is created"
+      ansible.builtin.command:
+        cmd: "~/bin/complytime list"
+      failed_when: false
+      changed_when: result_complytime_workspace.stat.exists
+      when: not result_complytime_workspace.stat.exists
+
+    - name: "Copy OSCAL Component Definition to Demo VM"
+      ansible.builtin.copy:
+        src: "{{ component_definition_file }}"
+        dest: "{{ complytime_workspace }}/bundles"
+        mode: "0640"
+
+    - name: "Copy OSCAL Profile to Demo VM"
+      ansible.builtin.copy:
+        src: "{{ profile_file }}"
+        dest: "{{ complytime_workspace }}/controls"
+        mode: "0640"
+...
