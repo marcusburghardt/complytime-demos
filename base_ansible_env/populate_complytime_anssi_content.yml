@@ -3,6 +3,7 @@
   hosts: demo_vm
   become: false
   vars:
+    catalog_file: "anssi-catalog.json"
     profile_file: "anssi-minimal-profile.json"
     component_definition_file: "anssi-component-definition.json"
     complytime_workspace: "~/.config/complytime"
@@ -20,23 +21,36 @@
       changed_when: result_complytime_workspace.stat.exists
       when: not result_complytime_workspace.stat.exists
 
-    - name: "Copy OSCAL Component Definition to Demo VM"
+    - name: "Copy OSCAL Catalog to Demo VM"
       ansible.builtin.copy:
-        src: "{{ component_definition_file }}"
-        dest: "{{ complytime_workspace }}/bundles"
+        src: "{{ catalog_file }}"
+        dest: "{{ complytime_workspace }}/controls"
         mode: "0640"
-      notify: "Update catalog references"
 
     - name: "Copy OSCAL Profile to Demo VM"
       ansible.builtin.copy:
         src: "{{ profile_file }}"
         dest: "{{ complytime_workspace }}/controls"
         mode: "0640"
+      notify: "Update catalog references"
+
+    - name: "Copy OSCAL Component Definition to Demo VM"
+      ansible.builtin.copy:
+        src: "{{ component_definition_file }}"
+        dest: "{{ complytime_workspace }}/bundles"
+        mode: "0640"
+      notify: "Update profile references"
 
   handlers:
-    - name: "Update catalog references"
+    - name: "Update profile references"
       ansible.builtin.replace:
         path: "{{ complytime_workspace }}/bundles/{{ component_definition_file }}"
         regexp: "trestle://.*"
         replace: "trestle://controls/{{ profile_file }}\","
+
+    - name: "Update catalog references"
+      ansible.builtin.replace:
+        path: "{{ complytime_workspace }}/controls/{{ profile_file }}"
+        regexp: "trestle://.*"
+        replace: "trestle://controls/{{ catalog_file }}\","
 ...

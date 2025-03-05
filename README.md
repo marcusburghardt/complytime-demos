@@ -106,7 +106,8 @@ After running this Playbook a directory structure similar to this is expected in
 │       ├── bundles
 │       │   └── anssi-component-definition.json
 │       ├── controls
-│       │   └── anssi-minimal-profile.json
+│           ├── anssi-minimal-profile.json
+│       │   └── anssi-catalog.json
 │       └── plugins
 │           ├── c2p-openscap-manifest.json
 │           ├── openscap-plugin
