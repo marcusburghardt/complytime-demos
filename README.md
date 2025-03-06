@@ -83,8 +83,7 @@ After running this Playbook a directory structure similar to this is expected in
 │       ├── controls
 │       └── plugins
 │           ├── c2p-openscap-manifest.json
-│           ├── openscap-plugin
-│           └── openscap-plugin.yml
+│           └── openscap-plugin
 ...
 ```
 
@@ -110,8 +109,7 @@ After running this Playbook a directory structure similar to this is expected in
 │       │   └── anssi-catalog.json
 │       └── plugins
 │           ├── c2p-openscap-manifest.json
-│           ├── openscap-plugin
-│           └── openscap-plugin.yml
+│           └── openscap-plugin
 ...
 ```
 
