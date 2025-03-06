@@ -48,12 +48,6 @@
         dest: "{{ complytime_workspace }}/plugins"
         mode: "0750"
 
-    - name: "Copy OpenSCAP plugin configuration file to Demo VM"
-      ansible.builtin.copy:
-        src: "openscap-plugin.yml"
-        dest: "{{ complytime_workspace }}/plugins"
-        mode: "0640"
-
     - name: "Compute SHA256 checksum of the openscap-plugin binary"
       ansible.builtin.stat:
         path: "{{ complytime_workspace }}/plugins/openscap-plugin"
