@@ -124,13 +124,18 @@ poetry run trestlebot catalog --cac-content-root ~/CaC/Forks/content --policy-id
 poetry run trestlebot sync-cac-content profile --product rhel9 --cac-content-root ~/CaC/Forks/content --policy-id anssi --repo-path ~/LABs/trestlebot-labs/ --oscal-catalog anssi --committer-name test --committer-email test@redhat.com --branch main --dry-run
 
 # With a profile available, an OSCAL Component Definition can be created using information from anssi_bp28_minimal profile for RHEL 9 product
-poetry run trestlebot sync-cac-content component-definition --product rhel9 --cac-content-root ~/CaC/Forks/content --cac-profile ~/CaC/Forks/content/products/rhel9/profiles/anssi_bp28_minimal.profile --repo-path ~/LABs/trestlebot-labs --oscal-profile anssi-minimal --component-definition-type software --committer-name marcusburghardt --committer-email test@redhat.com --branch main --dry-run
+poetry run trestlebot sync-cac-content component-definition --product rhel9 --cac-content-root ~/CaC/Forks/content --cac-profile anssi_bp28_minimal --repo-path ~/LABs/trestlebot-labs --oscal-profile anssi-minimal --component-definition-type software --committer-name test --committer-email test@redhat.com --branch main --dry-run
 
 # Finally the new Component Definition can be updated to include a validation component, to be used by openscap-plugin later
-poetry run trestlebot sync-cac-content component-definition --product rhel9 --cac-content-root ~/CaC/Forks/content --cac-profile ~/CaC/Forks/content/products/rhel9/profiles/anssi_bp28_minimal.profile --repo-path ~/LABs/trestlebot-labs --oscal-profile anssi-minimal --component-definition-type validation --committer-name marcusburghardt --committer-email test@redhat.com --branch main --dry-run
+poetry run trestlebot sync-cac-content component-definition --product rhel9 --cac-content-root ~/CaC/Forks/content --cac-profile ~/CaC/Forks/content/products/rhel9/profiles/anssi_bp28_minimal.profile --repo-path ~/LABs/trestlebot-labs --oscal-profile anssi-minimal --component-definition-type validation --committer-name test --committer-email test@redhat.com --branch main --dry-run
 ```
 
 After these commands, the generated component definition and the chosen profile files were copied to `base_ansible_env/files` to be used with `populate_complytime_anssi_content.yml` Playbook.
+
+### Generating OSCAL Content from CaC/content transformation
+
+The commands for transforming CaC/content are organized by policy_id in the [CONTENT_TRANSFORMATION.md](https://github.com/complytime/complytime-demos/blob/d403cb455f4bf6f4e4dd9e7d7fc724d9e0b0e321/CONTENT_TRANSFORMATION.md).
+
 
 ### Try ComplyTime commands
 
