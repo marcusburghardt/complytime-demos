@@ -118,10 +118,10 @@ For reference, these were the commands used with trestlebot to transform the ANS
 
 ```bash
 # Create a OSCAL catalog based on ANSSI control file in CaC/content
-poetry run trestlebot catalog --cac-content-root ~/CaC/Forks/content --policy-id anssi --repo-path ~/LABs/trestlebot-labs --oscal-catalog anssi --branch main --committer-name test --committer-email test@redhat.com --dry-run
+poetry run trestlebot catalog --cac-content-root ~/CaC/Forks/content --cac-policy-id anssi --repo-path ~/LABs/trestlebot-labs --oscal-catalog anssi --branch main --committer-name test --committer-email test@redhat.com --dry-run
 
 # Once a catalog is available, the ANSSI profiles can be created based on control file information in CaC/content
-poetry run trestlebot sync-cac-content profile --product rhel9 --cac-content-root ~/CaC/Forks/content --policy-id anssi --repo-path ~/LABs/trestlebot-labs/ --oscal-catalog anssi --committer-name test --committer-email test@redhat.com --branch main --dry-run
+poetry run trestlebot sync-cac-content profile --product rhel9 --cac-content-root ~/CaC/Forks/content --cac-policy-id anssi --repo-path ~/LABs/trestlebot-labs/ --oscal-catalog anssi --committer-name test --committer-email test@redhat.com --branch main --dry-run
 
 # With a profile available, an OSCAL Component Definition can be created using information from anssi_bp28_minimal profile for RHEL 9 product
 poetry run trestlebot sync-cac-content component-definition --product rhel9 --cac-content-root ~/CaC/Forks/content --cac-profile anssi_bp28_minimal --repo-path ~/LABs/trestlebot-labs --oscal-profile anssi-minimal --component-definition-type software --committer-name test --committer-email test@redhat.com --branch main --dry-run
