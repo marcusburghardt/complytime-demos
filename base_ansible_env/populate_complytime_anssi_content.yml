@@ -17,8 +17,10 @@
     - name: "Initialize ComplyTime to ensure the Workspace is created"
       ansible.builtin.command:
         cmd: "~/bin/complytime list"
+      environment:
+        COMPLYTIME_DEV_MODE: "1"
       failed_when: false
-      changed_when: result_complytime_workspace.stat.exists
+      changed_when: not result_complytime_workspace.stat.exists
       when: not result_complytime_workspace.stat.exists
 
     - name: "Copy OSCAL Catalog to Demo VM"
