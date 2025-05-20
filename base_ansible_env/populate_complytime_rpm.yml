@@ -2,6 +2,8 @@
 - name: "Prepare the environment to build ComplyTime RPM on the Demo VM"
   hosts: demo_vm
   become: false
+  vars:
+    complytime_spec_file: "complytime.spec"
   tasks:
     - name: "Install required packages"
       ansible.builtin.dnf:
@@ -16,9 +18,18 @@
 
     - name: "Copy ComplyTime SPEC file to Demo VM"
       ansible.builtin.copy:
-        src: "complytime.spec"
+        src: "{{ complytime_spec_file }}"
         dest: "~"
         mode: "0640"
+
+    - name: "Read complytime.spec file content"
+      ansible.builtin.slurp:
+        src: "~/{{ complytime_spec_file }}"
+      register: spec_content
+
+    - name: "Extract version from spec file"
+      ansible.builtin.set_fact:
+        complytime_version: "{{ (spec_content.content | b64decode | regex_findall('^Version:\\s*([0-9.]+)', multiline=True))[0] }}"
 
     - name: "Ensure the RPM build tree is created"
       ansible.builtin.command:
@@ -32,7 +43,7 @@
 
     - name: "Copy ComplyTime source code to the RPM build tree"
       ansible.builtin.copy:
-        src: "~/v0.0.5.tar.gz"
+        src: "~/v{{ complytime_version }}.tar.gz"
         dest: "~/rpmbuild/SOURCES/"
         mode: "0640"
         remote_src: true
