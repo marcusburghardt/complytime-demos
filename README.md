@@ -30,6 +30,7 @@ complytime-demos/
 │ ├── populate_ansible_inventory.sh # Script to collect information for Vagrant VM and populate the Ansible inventory
 │ └── Vagrantfile                   # Vagrant instructions to create a local VM
 ├── scripts/                        # Supporting scripts (WIP)
+├── CONTENT_TRANSFORMATION.md       # Examples of commands used in trestle-bot to generate OSCAL content based in ComplianceAsCode/content
 └── README.md                       # Main file to centralize instructions and other relevant information for demos.s
 ```
 
@@ -41,7 +42,6 @@ complytime-demos/
 git clone https://github.com/marcusburghardt/complytime-demos.git
 cd complytime-demos/base_rhel9_vm
 vagrant up
-./populate_ansible_inventory.sh
 ```
 
 It is recommended to create a snapshot of the fresh VM if you plan to work on a new Demo or experiment different Demos.
