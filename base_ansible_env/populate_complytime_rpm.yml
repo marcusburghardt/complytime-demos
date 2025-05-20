@@ -3,7 +3,9 @@
   hosts: demo_vm
   become: false
   vars:
-    complytime_spec_file: "complytime.spec"
+    repo_org: "complytime"
+    repo_name: "complytime"
+    spec_file: "complytime.spec"
   tasks:
     - name: "Install required packages"
       ansible.builtin.dnf:
@@ -16,20 +18,33 @@
         state: present
       become: true
 
+    - name: "Get latest release info from Github"
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ repo_org }}/{{ repo_name }}/releases/latest"
+        return_content: true
+      register: release_info
+
+    - name: "Set latest_version fact without leading 'v'"
+      ansible.builtin.set_fact:
+        latest_version: "{{ release_info.json.tag_name | regex_replace('^v', '') }}"
+
     - name: "Copy ComplyTime SPEC file to Demo VM"
       ansible.builtin.copy:
-        src: "{{ complytime_spec_file }}"
+        src: "{{ spec_file }}"
         dest: "~"
         mode: "0640"
 
-    - name: "Read complytime.spec file content"
-      ansible.builtin.slurp:
-        src: "~/{{ complytime_spec_file }}"
-      register: spec_content
+    - name: "Update Version line in SPEC file"
+      ansible.builtin.lineinfile:
+        path: "~/{{ spec_file }}"
+        regexp: "^Version:\\s*.*"
+        line: "Version:        {{ latest_version }}"
 
-    - name: "Extract version from spec file"
-      ansible.builtin.set_fact:
-        complytime_version: "{{ (spec_content.content | b64decode | regex_findall('^Version:\\s*([0-9.]+)', multiline=True))[0] }}"
+    - name: "Update Source0 line in SPEC file"
+      ansible.builtin.lineinfile:
+        path: "~/{{ spec_file }}"
+        regexp: "^Source0:\\s*.*"
+        line: "Source0:        https://github.com/{{ repo_org }}/{{ repo_name }}/archive/refs/tags/v{{ latest_version }}.tar.gz"
 
     - name: "Ensure the RPM build tree is created"
       ansible.builtin.command:
@@ -38,12 +53,12 @@
 
     - name: "Download the ComplyTime source code as informed in the SPEC file"
       ansible.builtin.command:
-        cmd: "spectool -g complytime.spec"
+        cmd: "spectool -g ~/{{ spec_file }}"
       changed_when: false
 
     - name: "Copy ComplyTime source code to the RPM build tree"
       ansible.builtin.copy:
-        src: "~/v{{ complytime_version }}.tar.gz"
+        src: "~/v{{ latest_version }}.tar.gz"
         dest: "~/rpmbuild/SOURCES/"
         mode: "0640"
         remote_src: true
@@ -57,7 +72,7 @@
 
     - name: "Preamble check for the ComplyTime RPM build"
       ansible.builtin.command:
-        cmd: "rpmbuild -bp ~/{{ complytime_spec_file }}"
+        cmd: "rpmbuild -bp ~/{{ spec_file }}"
       register: preamble_check
       changed_when: false
 
