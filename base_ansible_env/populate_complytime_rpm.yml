@@ -54,4 +54,16 @@
         line: 'export GOTOOLCHAIN=auto'
         insertafter: EOF
         state: present
+
+    - name: "Preamble check for the ComplyTime RPM build"
+      ansible.builtin.command:
+        cmd: "rpmbuild -bp ~/{{ complytime_spec_file }}"
+      register: preamble_check
+      changed_when: false
+
+    - name: "Show preamble check warnings and errors"
+      ansible.builtin.debug:
+        msg: "{{ preamble_check.stderr_lines | select('match', '^(warning|error)') | list }}"
+      changed_when: true
+      when: preamble_check.stderr_lines | select('match', '^(warning|error)') | length > 0
 ...
