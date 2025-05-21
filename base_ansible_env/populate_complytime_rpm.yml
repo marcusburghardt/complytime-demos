@@ -2,21 +2,49 @@
 - name: "Prepare the environment to build ComplyTime RPM on the Demo VM"
   hosts: demo_vm
   become: false
+  vars:
+    repo_org: "complytime"
+    repo_name: "complytime"
+    spec_file: "complytime.spec"
   tasks:
-    - name: Install required packages
+    - name: "Install required packages"
       ansible.builtin.dnf:
         name:
           - git
-          - make
           - go-toolset
+          - make
+          - pandoc
+          - rpmdevtools
         state: present
       become: true
 
+    - name: "Get latest release info from Github"
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ repo_org }}/{{ repo_name }}/releases/latest"
+        return_content: true
+      register: release_info
+
+    - name: "Set latest_version fact without leading 'v'"
+      ansible.builtin.set_fact:
+        latest_version: "{{ release_info.json.tag_name | regex_replace('^v', '') }}"
+
     - name: "Copy ComplyTime SPEC file to Demo VM"
       ansible.builtin.copy:
-        src: "complytime.spec"
+        src: "{{ spec_file }}"
         dest: "~"
         mode: "0640"
+
+    - name: "Update Version line in SPEC file"
+      ansible.builtin.lineinfile:
+        path: "~/{{ spec_file }}"
+        regexp: "^Version:\\s*.*"
+        line: "Version:        {{ latest_version }}"
+
+    - name: "Update Source0 line in SPEC file"
+      ansible.builtin.lineinfile:
+        path: "~/{{ spec_file }}"
+        regexp: "^Source0:\\s*.*"
+        line: "Source0:        https://github.com/{{ repo_org }}/{{ repo_name }}/archive/refs/tags/v{{ latest_version }}.tar.gz"
 
     - name: "Ensure the RPM build tree is created"
       ansible.builtin.command:
@@ -25,12 +53,12 @@
 
     - name: "Download the ComplyTime source code as informed in the SPEC file"
       ansible.builtin.command:
-        cmd: "spectool -g complytime.spec"
+        cmd: "spectool -g ~/{{ spec_file }}"
       changed_when: false
 
     - name: "Copy ComplyTime source code to the RPM build tree"
       ansible.builtin.copy:
-        src: "~/v0.0.5.tar.gz"
+        src: "~/v{{ latest_version }}.tar.gz"
         dest: "~/rpmbuild/SOURCES/"
         mode: "0640"
         remote_src: true
@@ -41,4 +69,16 @@
         line: 'export GOTOOLCHAIN=auto'
         insertafter: EOF
         state: present
+
+    - name: "Preamble check for the ComplyTime RPM build"
+      ansible.builtin.command:
+        cmd: "rpmbuild -bp ~/{{ spec_file }}"
+      register: preamble_check
+      changed_when: false
+
+    - name: "Show preamble check warnings and errors"
+      ansible.builtin.debug:
+        msg: "{{ preamble_check.stderr_lines | select('match', '^(warning|error)') | list }}"
+      changed_when: true
+      when: preamble_check.stderr_lines | select('match', '^(warning|error)') | length > 0
 ...
