@@ -7,3 +7,6 @@
 
 # VMs
 .vagrant/
+
+# Ignore local changes to this file
+base_ansible_env/ansible_inventory

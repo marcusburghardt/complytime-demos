@@ -63,4 +63,9 @@ gpgcheck=0" > /etc/yum.repos.d/cac.repo
   dnf upgrade -y
   SCRIPT
   config.vm.provision "shell", inline: $bootstrap
+
+  config.trigger.after :up do |trigger|
+    trigger.name = "Execute local script to update Ansible inventory and add SSH key"
+    trigger.run = { inline: "./populate_ansible_inventory.sh" }
+  end
 end
