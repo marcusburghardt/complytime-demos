@@ -9,7 +9,7 @@ The commands for transforming CaC/content leverage [trestle-bot](https://github.
 
 ```bash
 # Generating an OSCAL Catalog using the anssi cac-policy-id from CaC/content.
-poetry run trestlebot catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id anssi --repo-path ~/demos/tmp-trestle-demos --oscal-catalog anssi --branch main --committer-name test --committer-email test@redhat.com --dry-run
+poetry run trestlebot sync-cac-content catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id anssi --repo-path ~/demos/tmp-trestle-demos --oscal-catalog anssi --branch main --committer-name test --committer-email test@redhat.com --dry-run
 
 # Generating an OSCAL Profile leveraging the anssi OSCAL Catalog and the RHEL9 CaC/content.
 poetry run trestlebot sync-cac-content profile --product rhel9 --cac-content-root ~/CaC/forked_content/content --cac-policy-id anssi --repo-path ~/demos/tmp-trestle-demos --oscal-catalog anssi --committer-name test --committer-email test@redhat.com --branch main --dry-run
@@ -45,7 +45,7 @@ poetry run trestlebot sync-cac-content component-definition --product rhel9 --ca
 ```bash
 
 # Generating an OSCAL Catalog using the ccn_rhel9 cac-policy-id from CaC/content.
-poetry run trestlebot catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id ccn_rhel9 --repo-path ~/demos/tmp-trestle-demos --oscal-catalog ccn_rhel9 --branch main --committer-name test --committer-email test@redhat.com --dry-run
+poetry run trestlebot sync-cac-content catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id ccn_rhel9 --repo-path ~/demos/tmp-trestle-demos --oscal-catalog ccn_rhel9 --branch main --committer-name test --committer-email test@redhat.com --dry-run
 
 # Generating an OSCAL Profile leveraging the ccn_rhel9 OSCAL Catalog and the RHEL9 CaC/content.
 poetry run trestlebot sync-cac-content profile --product rhel9 --cac-content-root ~/CaC/forked_content/content --cac-policy-id ccn_rhel9 --repo-path ~/demos/tmp-trestle-demos --oscal-catalog ccn_rhel9 --committer-name test --committer-email test@redhat.com --branch main --dry-run
@@ -74,7 +74,7 @@ poetry run trestlebot sync-cac-content component-definition --product rhel9 --ca
 ```bash
 
 # Generating an OSCAL Catalog using the cis_rhel9 cac-policy-id from CaC/content.
-poetry run trestlebot catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id cis_rhel9 --repo-path ~/demos/tmp-trestle-demos --oscal-catalog cis_rhel9 --branch main --committer-name test --committer-email test@redhat.com --dry-run
+poetry run trestlebot sync-cac-content catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id cis_rhel9 --repo-path ~/demos/tmp-trestle-demos --oscal-catalog cis_rhel9 --branch main --committer-name test --committer-email test@redhat.com --dry-run
 
 # Generating an OSCAL Profile leveraging the cis_rhel9 OSCAL Catalog and the RHEL9 CaC/content.
 poetry run trestlebot sync-cac-content profile --product rhel9 --cac-content-root ~/CaC/forked_content/content --cac-policy-id cis_rhel9 --repo-path ~/demos/tmp-trestle-demos --oscal-catalog cis_rhel9 --committer-name test --committer-email test@redhat.com --branch main --dry-run
@@ -109,7 +109,7 @@ poetry run trestlebot sync-cac-content component-definition --product rhel9 --ca
 ```bash
 
 # Generating an OSCAL Catalog using the ospp cac-policy-id from CaC/content.
-poetry run trestlebot catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id ospp --repo-path ~/demos/tmp-trestle-demos --oscal-catalog ospp --branch main --committer-name test --committer-email test@redhat.com --dry-run
+poetry run trestlebot sync-cac-content catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id ospp --repo-path ~/demos/tmp-trestle-demos --oscal-catalog ospp --branch main --committer-name test --committer-email test@redhat.com --dry-run
 
 # Generating an OSCAL Profile leveraging the ospp OSCAL Catalog and the RHEL9 CaC/content.
 poetry run trestlebot sync-cac-content profile --product rhel9 --cac-content-root ~/CaC/forked_content/content --cac-policy-id ospp --repo-path ~/demos/tmp-trestle-demos --oscal-catalog ospp --committer-name test --committer-email test@redhat.com --branch main --dry-run
@@ -126,7 +126,7 @@ poetry run trestlebot sync-cac-content component-definition --product rhel9 --ca
 ```bash
 
 # Generating an OSCAL Catalog using the ospp cac-policy-id from CaC/content.
-poetry run trestlebot catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id ospp --repo-path ~/demos/tmp-trestle-demos --oscal-catalog ospp --branch main --committer-name test --committer-email test@redhat.com --dry-run
+poetry run trestlebot sync-cac-content catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id ospp --repo-path ~/demos/tmp-trestle-demos --oscal-catalog ospp --branch main --committer-name test --committer-email test@redhat.com --dry-run
 
 # Generating an OSCAL Profile leveraging the ospp OSCAL Catalog and the RHEL9 CaC/content.
 poetry run trestlebot sync-cac-content profile --product rhel9 --cac-content-root ~/CaC/forked_content/content --cac-policy-id ospp --repo-path ~/demos/tmp-trestle-demos --oscal-catalog ospp --committer-name test --committer-email test@redhat.com --branch main --dry-run
@@ -143,7 +143,7 @@ poetry run trestlebot sync-cac-content component-definition --product rhel9 --ca
 ```bash
 
 # Generating an OSCAL Catalog using the e8 cac-policy-id from CaC/content.
-poetry run trestlebot catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id e8 --repo-path ~/demos/tmp-trestle-demos --oscal-catalog e8 --branch main --committer-name test --committer-email test@redhat.com --dry-run
+poetry run trestlebot sync-cac-content catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id e8 --repo-path ~/demos/tmp-trestle-demos --oscal-catalog e8 --branch main --committer-name test --committer-email test@redhat.com --dry-run
 
 # Generating an OSCAL Profile leveraging the e8 OSCAL Catalog and the RHEL9 CaC/content.
 poetry run trestlebot sync-cac-content profile --product rhel9 --cac-content-root ~/CaC/forked_content/content --cac-policy-id e8 --repo-path ~/demos/tmp-trestle-demos --oscal-catalog e8 --committer-name test --committer-email test@redhat.com --branch main --dry-run
@@ -160,7 +160,7 @@ poetry run trestlebot sync-cac-content component-definition --product rhel9 --ca
 ```bash
 
 # Generating an OSCAL Catalog using the hipaa cac-policy-id from CaC/content.
-poetry run trestlebot catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id hipaa --repo-path ~/demos/tmp-trestle-demos --oscal-catalog hipaa --branch main --committer-name test --committer-email test@redhat.com --dry-run  
+poetry run trestlebot sync-cac-content catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id hipaa --repo-path ~/demos/tmp-trestle-demos --oscal-catalog hipaa --branch main --committer-name test --committer-email test@redhat.com --dry-run  
 
 # Generating an OSCAL Profile leveraging the hipaa OSCAL Catalog and the RHEL9 CaC/content.
 poetry run trestlebot sync-cac-content profile --product rhel9 --cac-content-root ~/CaC/forked_content/content --cac-policy-id hipaa --repo-path ~/demos/tmp-trestle-demos --oscal-catalog hipaa --committer-name test --committer-email test@redhat.com --branch main --dry-run
@@ -188,7 +188,7 @@ poetry run trestlebot sync-cac-content component-definition --product rhel9 --ca
 
 ```bash
 # Generating an OSCAL Catalog using the ism_o cac-policy-id from CaC/content.
-poetry run trestlebot catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id ism_o --repo-path ~/demos/tmp-trestle-demos --oscal-catalog ism_o --branch main --committer-name test --committer-email test@redhat.com --dry-run  
+poetry run trestlebot sync-cac-content catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id ism_o --repo-path ~/demos/tmp-trestle-demos --oscal-catalog ism_o --branch main --committer-name test --committer-email test@redhat.com --dry-run  
 
 # Generating an OSCAL Profile leveraging the ism_o OSCAL Catalog and the RHEL9 CaC/content.
 poetry run trestlebot sync-cac-content profile --product rhel9 --cac-content-root ~/CaC/forked_content/content --cac-policy-id ism_o --repo-path ~/demos/tmp-trestle-demos --oscal-catalog ism_o --committer-name test --committer-email test@redhat.com --branch main --dry-run
@@ -216,7 +216,7 @@ poetry run trestlebot sync-cac-content component-definition --product rhel9 --ca
 ```bash
 
 # Generating an OSCAL Catalog using the pcidss_4 cac-policy-id from CaC/content.
-poetry run trestlebot catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id pcidss_4 --repo-path ~/demos/tmp-trestle-demos --oscal-catalog pcidss_4 --branch main --committer-name test --committer-email test@redhat.com --dry-run
+poetry run trestlebot sync-cac-content catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id pcidss_4 --repo-path ~/demos/tmp-trestle-demos --oscal-catalog pcidss_4 --branch main --committer-name test --committer-email test@redhat.com --dry-run
 
 # Generating an OSCAL Profile leveraging the pcidss_4 OSCAL Catalog and the RHEL9 CaC/content.
 poetry run trestlebot sync-cac-content profile --product rhel9 --cac-content-root ~/CaC/forked_content/content --cac-policy-id pcidss_4 --repo-path ~/demos/tmp-trestle-demos --oscal-catalog pcidss_4 --committer-name test --committer-email test@redhat.com --branch main --dry-run
@@ -233,7 +233,7 @@ poetry run trestlebot sync-cac-content component-definition --product rhel9 --ca
 ```bash
 
 # Generating an OSCAL Catalog using the stig_rhel9 cac-policy-id from CaC/content.
-poetry run trestlebot catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id stig_rhel9 --repo-path ~/demos/tmp-trestle-demos --oscal-catalog stig_rhel9 --branch main --committer-name test --committer-email test@redhat.com --dry-run 
+poetry run trestlebot sync-cac-content catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id stig_rhel9 --repo-path ~/demos/tmp-trestle-demos --oscal-catalog stig_rhel9 --branch main --committer-name test --committer-email test@redhat.com --dry-run 
 
 # Generating an OSCAL Profile leveraging the stig_rhel9 OSCAL Catalog and the RHEL9 CaC/content.
 poetry run trestlebot sync-cac-content profile --product rhel9 --cac-content-root ~/CaC/forked_content/content --cac-policy-id stig_rhel9 --repo-path ~/demos/tmp-trestle-demos --oscal-catalog stig_rhel9 --committer-name test --committer-email test@redhat.com --branch main --dry-run
@@ -261,7 +261,7 @@ poetry run trestlebot sync-cac-content component-definition --product rhel9 --ca
 
 ```bash
 # Generating an OSCAL Catalog using the stig_rhel9 cac-policy-id from CaC/content.
-poetry run trestlebot catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id stig_rhel9 --repo-path ~/demos/tmp-trestle-demos --oscal-catalog stig_gui --branch main --committer-name test --committer-email test@redhat.com --dry-run
+poetry run trestlebot sync-cac-content catalog --cac-content-root ~/CaC/forked_content/content --cac-policy-id stig_rhel9 --repo-path ~/demos/tmp-trestle-demos --oscal-catalog stig_gui --branch main --committer-name test --committer-email test@redhat.com --dry-run
 
 # Generating an OSCAL Profile leveraging the stig_gui OSCAL Catalog and the RHEL9 CaC/content.
 poetry run trestlebot sync-cac-content profile --product rhel9 --cac-content-root ~/CaC/forked_content/content --cac-policy-id stig_rhel9 --repo-path ~/demos/tmp-trestle-demos --oscal-catalog stig_gui --committer-name test --committer-email test@redhat.com --branch main --dry-run
