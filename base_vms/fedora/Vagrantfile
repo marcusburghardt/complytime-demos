@@ -6,34 +6,14 @@ Vagrant.configure("2") do |config|
     libvirt.memory = "2048"
     libvirt.cpus = 2
     libvirt.default_prefix = "complytime_"
+    libvirt.machine_virtual_size = 10
     libvirt.channel :type => 'unix', :target_name => 'org.qemu.guest_agent.0', :target_type => 'virtio'
   end
 
-  config.vm.define "rhel9" do |rhel|
-    rhel.vm.box = "generic/rhel9"
-    rhel.vm.hostname = "rhel9"
+  config.vm.define "fedora" do |fedora|
+    fedora.vm.box = "fedora/41-cloud-base"
+    fedora.vm.hostname = "fedora"
   end
-
-  # This Vagrantfile is using a publicly available Box and, therefore, without a valid
-  # subscription. Testing repositories can be included as needed.
-  RHEL_BASE_REPO = "http://download.eng.brq.redhat.com/rhel-9/rel-eng/RHEL-9/latest-RHEL-9/compose/BaseOS/x86_64/os/"
-  RHEL_APPS_REPO = "http://download.eng.brq.redhat.com/rhel-9/rel-eng/RHEL-9/latest-RHEL-9/compose/AppStream/x86_64/os"
-
-  $rhel_testing_repos = <<-SCRIPT
-echo "
-[demo_base_repo]
-name=Testing Base Repo
-baseurl=#{RHEL_BASE_REPO}
-enabled=1
-gpgcheck=0
-
-[demo_apps_repo]
-name=Testing Apps Repo
-baseurl=#{RHEL_APPS_REPO}
-enabled=1
-gpgcheck=0" > /etc/yum.repos.d/cac.repo
-  SCRIPT
-  config.vm.provision "shell", inline: $rhel_testing_repos
 
   # This will collect the SSH public key used to access the VM. Update the path if needed.
   ssh_pub_key = File.readlines("#{Dir.home}/.ssh/id_rsa.pub").first.strip
@@ -52,6 +32,9 @@ gpgcheck=0" > /etc/yum.repos.d/cac.repo
   echo "ansible ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/ansible
   chmod 0440 /etc/sudoers.d/ansible
 
+  # Ensure filesystem is resized to maximum size
+  btrfs filesystem resize max /home
+
   # Install required packages
   dnf install -y qemu-guest-agent openssh-clients openssh-server
 
@@ -66,6 +49,6 @@ gpgcheck=0" > /etc/yum.repos.d/cac.repo
 
   config.trigger.after :up do |trigger|
     trigger.name = "Execute local script to update Ansible inventory and add SSH key"
-    trigger.run = { inline: "./populate_ansible_inventory.sh" }
+    trigger.run = { inline: "../populate_ansible_inventory.sh" }
   end
 end
