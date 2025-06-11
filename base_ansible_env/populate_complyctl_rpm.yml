@@ -4,17 +4,17 @@
   become: false
   vars:
     repo_org: "complytime"
-    repo_name: "complytime"
-    spec_file: "complytime.spec"
+    repo_name: "complyctl"
+    spec_file: "complyctl.spec"
   tasks:
     - name: "Install required packages"
       ansible.builtin.dnf:
         name:
           - git
-          - go-toolset
-          - make
-          - pandoc
+          - go-rpm-macros
+          - golang
           - rpmdevtools
+          - rpmlint
         state: present
       become: true
 
@@ -40,12 +40,6 @@
         regexp: "^Version:\\s*.*"
         line: "Version:        {{ latest_version }}"
 
-    - name: "Update Source0 line in SPEC file"
-      ansible.builtin.lineinfile:
-        path: "~/{{ spec_file }}"
-        regexp: "^Source0:\\s*.*"
-        line: "Source0:        https://github.com/{{ repo_org }}/{{ repo_name }}/archive/refs/tags/v{{ latest_version }}.tar.gz"
-
     - name: "Ensure the RPM build tree is created"
       ansible.builtin.command:
         cmd: "rpmdev-setuptree"
@@ -62,13 +56,6 @@
         dest: "~/rpmbuild/SOURCES/"
         mode: "0640"
         remote_src: true
-
-    - name: "Ensure GOTOOLCHAIN=auto is set for a specific user"
-      ansible.builtin.lineinfile:
-        path: ~/.bashrc
-        line: 'export GOTOOLCHAIN=auto'
-        insertafter: EOF
-        state: present
 
     - name: "Preamble check for the ComplyTime RPM build"
       ansible.builtin.command:
