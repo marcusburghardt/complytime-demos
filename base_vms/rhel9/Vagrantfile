@@ -1,0 +1,71 @@
+# This Vagrant file will create a RHEL 9 VM using the libvirt provider.
+# It intended to be used only for local tests.
+
+Vagrant.configure("2") do |config|
+  config.vm.provider "libvirt" do |libvirt|
+    libvirt.memory = "2048"
+    libvirt.cpus = 2
+    libvirt.default_prefix = "complytime_"
+    libvirt.channel :type => 'unix', :target_name => 'org.qemu.guest_agent.0', :target_type => 'virtio'
+  end
+
+  config.vm.define "rhel9" do |rhel|
+    rhel.vm.box = "generic/rhel9"
+    rhel.vm.hostname = "rhel9"
+  end
+
+  # This Vagrantfile is using a publicly available Box and, therefore, without a valid
+  # subscription. Testing repositories can be included as needed.
+  RHEL_BASE_REPO = "http://download.eng.brq.redhat.com/rhel-9/rel-eng/RHEL-9/latest-RHEL-9/compose/BaseOS/x86_64/os/"
+  RHEL_APPS_REPO = "http://download.eng.brq.redhat.com/rhel-9/rel-eng/RHEL-9/latest-RHEL-9/compose/AppStream/x86_64/os"
+
+  $rhel_testing_repos = <<-SCRIPT
+echo "
+[demo_base_repo]
+name=Testing Base Repo
+baseurl=#{RHEL_BASE_REPO}
+enabled=1
+gpgcheck=0
+
+[demo_apps_repo]
+name=Testing Apps Repo
+baseurl=#{RHEL_APPS_REPO}
+enabled=1
+gpgcheck=0" > /etc/yum.repos.d/cac.repo
+  SCRIPT
+  config.vm.provision "shell", inline: $rhel_testing_repos
+
+  # This will collect the SSH public key used to access the VM. Update the path if needed.
+  ssh_pub_key = File.readlines("#{Dir.home}/.ssh/id_rsa.pub").first.strip
+
+  # To customize the VM during its provisioning, write the commands between "-SCRIPT" and "SCRIPT".
+  $bootstrap = <<-SCRIPT
+  # Start the customizations
+  mkdir -p /root/.ssh
+  echo #{ssh_pub_key} >> /home/vagrant/.ssh/authorized_keys
+  echo #{ssh_pub_key} >> /root/.ssh/authorized_keys
+
+  # Configure Ansible user that can elevate privileges without a password
+  useradd -G wheel ansible && mkdir -p /home/ansible/.ssh && echo #{ssh_pub_key} >> /home/ansible/.ssh/authorized_keys
+  chown -R ansible:ansible /home/ansible/.ssh && chmod 700 /home/ansible/.ssh
+  chmod 600 /home/ansible/.ssh/authorized_keys
+  echo "ansible ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/ansible
+  chmod 0440 /etc/sudoers.d/ansible
+
+  # Install required packages
+  dnf install -y qemu-guest-agent openssh-clients openssh-server
+
+  # Install some useful packages
+  dnf install -y git python3-pip tar tree vim -y
+  dnf install -y --nobest openscap-scanner openscap-engine-sce scap-security-guide
+
+  # Upgrade the system
+  dnf upgrade -y
+  SCRIPT
+  config.vm.provision "shell", inline: $bootstrap
+
+  config.trigger.after :up do |trigger|
+    trigger.name = "Execute local script to update Ansible inventory and add SSH key"
+    trigger.run = { inline: "../populate_ansible_inventory.sh" }
+  end
+end
