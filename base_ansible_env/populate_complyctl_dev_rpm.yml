@@ -1,0 +1,180 @@
+---
+- name: "Prepare the environment to build complyctl RPMs in Fedora"
+  hosts: demo_vm
+  become: false
+  vars:
+    repo_org: "complytime"
+    repo_name: "complyctl"
+    spec_file: "complyctl.spec"
+    complytime_workspace: "/usr/share/complytime"
+    catalog_file: "cusp-catalog.json"
+    profile_file: "cusp-profile.json"
+    component_definition_file: "cusp-component-definition.json"
+    fedora_catalog: "https://raw.githubusercontent.com/ComplianceAsCode/oscal-content/refs/heads/main/catalogs/cusp_fedora/catalog.json"
+    fedora_profile: "https://raw.githubusercontent.com/ComplianceAsCode/oscal-content/refs/heads/main/profiles/fedora-cusp_fedora-default/profile.json"
+    fedora_component_definition: "https://raw.githubusercontent.com/ComplianceAsCode/oscal-content/refs/heads/main/component-definitions/fedora/fedora-cusp_fedora-default/component-definition.json"
+  tasks:
+    - name: "Ensure removal of previous content"
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ complytime_workspace }}/controls/{{ catalog_file }}"
+        - "{{ complytime_workspace }}/controls/{{ profile_file }}"
+        - "{{ complytime_workspace }}/bundles/{{ component_definition_file }}"
+      become: true
+
+    - name: "Ensure removal of packages from previous installation"
+      ansible.builtin.dnf:
+        name:
+          - complyctl
+          - complyctl-openscap-plugin
+        state: absent
+      become: true
+
+    - name: "Install required packages to build complyctl RPMs"
+      ansible.builtin.dnf:
+        name:
+          - go-rpm-macros
+          - golang
+          - rpmdevtools
+          - rpmlint
+        state: present
+      become: true
+
+    - name: "Ensure the RPM build tree is created"
+      ansible.builtin.command:
+        cmd: "rpmdev-setuptree"
+      changed_when: false
+
+    - name: "Get latest release info from GitHub repository"
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ repo_org }}/{{ repo_name }}/releases/latest"
+        return_content: true
+      register: release_info
+
+    - name: "Set latest_version fact without leading 'v'"
+      ansible.builtin.set_fact:
+        latest_version: "{{ release_info.json.tag_name | regex_replace('^v', '') }}"
+
+    - name: "Clone or update repository"
+      ansible.builtin.git:
+        repo: "https://github.com/{{ repo_org }}/{{ repo_name }}.git"
+        dest: "{{ repo_name }}"
+        version: HEAD
+        update: true
+
+    - name: "Create tarball from git HEAD"
+      ansible.builtin.shell:
+        cmd: "set -o pipefail && git archive --format=tar --prefix={{ repo_name }}-{{ latest_version }}/ HEAD
+              | gzip > ~/rpmbuild/SOURCES/v{{ latest_version }}.tar.gz"
+        chdir: "{{ repo_name }}"
+        executable: /bin/bash
+      changed_when: true
+
+    - name: "Copy complyctl SPEC file from cloned repository"
+      ansible.builtin.copy:
+        src: "{{ repo_name }}/{{ spec_file }}"
+        dest: "{{ spec_file }}"
+        mode: "0640"
+        remote_src: true
+
+    - name: "Ensure complyctl SPEC file uses the latest released version"
+      ansible.builtin.lineinfile:
+        path: "{{ spec_file }}"
+        regexp: "^Version:\\s*.*"
+        line: "Version:        {{ latest_version }}"
+
+    - name: "Preamble check for the complyctl SPEC file"
+      ansible.builtin.command:
+        cmd: "rpmbuild -bp {{ spec_file }}"
+      register: result_preamble_check
+      changed_when: false
+
+    - name: "Show preamble check warnings and errors"
+      ansible.builtin.debug:
+        msg: "{{ result_preamble_check.stderr_lines | select('match', '^(warning|error)') | list }}"
+      changed_when: true
+      when: result_preamble_check.stderr_lines | select('match', '^(warning|error)') | length > 0
+
+    - name: "Unmount tmpfs to avoid space issues during this build"
+      ansible.posix.mount:
+        path: /tmp
+        state: unmounted
+      become: true
+
+    - name: "Build complyctl RPMs"
+      ansible.builtin.command:
+        cmd: "rpmbuild -bb --nodebuginfo {{ spec_file }}"
+      register: result_build_all
+      changed_when: false
+
+    - name: "Show build process warnings and errors"
+      ansible.builtin.debug:
+        msg: "{{ result_build_all.stderr_lines | select('match', '^(warning|error)') | list }}"
+      changed_when: true
+      when: result_build_all.stderr_lines | select('match', '^(warning|error)') | length > 0
+
+    - name: "Extract RPM paths from rpmbuild output"
+      ansible.builtin.set_fact:
+        built_rpm_files: >-
+          {{ result_build_all.stdout_lines
+            | select('match', '.*\.rpm')
+            | map('regex_replace', '^Wrote: ', '')
+            | list }}
+
+    - name: "Install complyctl RPMs built locally"
+      ansible.builtin.dnf:
+        name: "{{ built_rpm_files }}"
+        disable_gpg_check: true
+        state: present
+      become: true
+
+    - name: "Download OSCAL Catalog"
+      ansible.builtin.get_url:
+        url: "{{ fedora_catalog }}"
+        dest: "{{ complytime_workspace }}/controls/{{ catalog_file }}"
+        mode: "0644"
+      become: true
+
+    - name: "Download OSCAL Profile"
+      ansible.builtin.get_url:
+        url: "{{ fedora_profile }}"
+        dest: "{{ complytime_workspace }}/controls/{{ profile_file }}"
+        mode: "0644"
+      notify: "Update catalog references in Profile"
+      become: true
+
+    - name: "Download OSCAL Component Definition"
+      ansible.builtin.get_url:
+        url: "{{ fedora_component_definition }}"
+        dest: "{{ complytime_workspace }}/bundles/{{ component_definition_file }}"
+        mode: "0644"
+      notify: "Update profile references in Component Definition"
+      become: true
+
+    - name: "Execute plan command to create Assessment Plan"
+      ansible.builtin.command:
+        cmd: "complyctl plan cusp_fedora"
+      changed_when: false
+
+    - name: "Execute generate command to create policy and remediation"
+      ansible.builtin.command:
+        cmd: "complyctl generate"
+      changed_when: false
+
+  handlers:
+    - name: "Update profile references in Component Definition"
+      ansible.builtin.replace:
+        path: "{{ complytime_workspace }}/bundles/{{ component_definition_file }}"
+        regexp: "trestle://.*"
+        replace: "trestle://controls/{{ profile_file }}\","
+      become: true
+
+    - name: "Update catalog references in Profile"
+      ansible.builtin.replace:
+        path: "{{ complytime_workspace }}/controls/{{ profile_file }}"
+        regexp: "trestle://.*"
+        replace: "trestle://controls/{{ catalog_file }}\","
+      become: true
+...
