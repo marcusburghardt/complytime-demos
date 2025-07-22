@@ -8,9 +8,13 @@
     complyctl_workspace: "~/.local/share/complytime"
 
   tasks:
-    - name: "Lets Pray for the God of Demos"
-      ansible.builtin.debug:
-        msg: "Please, give me power to make this demo work! Or creativity to find good excuses. :)"
+    - name: "Ensure removal of packages from previous installation"
+      ansible.builtin.dnf:
+        name:
+          - complyctl
+          - complyctl-openscap-plugin
+        state: absent
+      become: true
 
     - name: "Build complyctl locally"
       ansible.builtin.command:
@@ -30,7 +34,7 @@
         dest: "~/bin/complyctl"
         mode: "0750"
 
-    - name: "Ensure COMPLYTIME_DEV_MODE=1 is set for a specific user"
+    - name: "Ensure COMPLYTIME_DEV_MODE=1 is set for the testing user"
       ansible.builtin.lineinfile:
         path: ~/.bashrc
         line: 'export COMPLYTIME_DEV_MODE=1'
@@ -63,7 +67,7 @@
         checksum_algorithm: sha256
       register: result_plugin_checksum
 
-    - name: "Create or Update the openscap-plugin manifest"
+    - name: "Create or update the openscap-plugin manifest"
       ansible.builtin.template:
         src: c2p-openscap-manifest.json.j2
         dest: "{{ complyctl_workspace }}/plugins/c2p-openscap-manifest.json"
