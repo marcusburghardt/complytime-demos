@@ -1,0 +1,49 @@
+---
+- name: "Populate Demo VM with testing content from Upstream"
+  hosts: demo_vm
+  become: false
+  vars:
+    # Currently using anssi_bp28_minimal, but can be changed by any content available in oscal-content
+    catalog: "https://github.com/ComplianceAsCode/oscal-content/raw/refs/heads/main/catalogs/anssi/catalog.json"
+    profile: "https://github.com/ComplianceAsCode/oscal-content/raw/refs/heads/main/profiles/rhel9-anssi-minimal/profile.json"
+    component_definition: "https://github.com/ComplianceAsCode/oscal-content/raw/refs/heads/main/component-definitions/rhel9/rhel9-anssi-minimal/component-definition.json"
+
+    catalog_file: "test-catalog.json"
+    profile_file: "test-profile.json"
+    component_definition_file: "test-component-definition.json"
+    complytime_workspace: "~/.local/share/complytime"
+
+  tasks:
+    - name: "Download OSCAL Catalog"
+      ansible.builtin.get_url:
+        url: "{{ catalog }}"
+        dest: "{{ complytime_workspace }}/controls/{{ catalog_file }}"
+        mode: "0644"
+
+    - name: "Download OSCAL Profile"
+      ansible.builtin.get_url:
+        url: "{{ profile }}"
+        dest: "{{ complytime_workspace }}/controls/{{ profile_file }}"
+        mode: "0644"
+      notify: "Update catalog references"
+
+    - name: "Download OSCAL Component Definition"
+      ansible.builtin.get_url:
+        url: "{{ component_definition }}"
+        dest: "{{ complytime_workspace }}/bundles/{{ component_definition_file }}"
+        mode: "0644"
+      notify: "Update profile references"
+
+  handlers:
+    - name: "Update profile references"
+      ansible.builtin.replace:
+        path: "{{ complytime_workspace }}/bundles/{{ component_definition_file }}"
+        regexp: "trestle://.*"
+        replace: "trestle://controls/{{ profile_file }}\","
+
+    - name: "Update catalog references"
+      ansible.builtin.replace:
+        path: "{{ complytime_workspace }}/controls/{{ profile_file }}"
+        regexp: "trestle://.*"
+        replace: "trestle://controls/{{ catalog_file }}\","
+...
