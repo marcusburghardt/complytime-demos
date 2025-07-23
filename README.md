@@ -70,15 +70,15 @@ ssh ansible@192.168.122.161
 
 ### Populate complyctl binaries
 
-Execute the `populate_complytime_vm.yml` Playbook to build complyctl binaries locally and send them to the Demo VM.
+Execute the `populate_complytime_dev_binaries.yml` Playbook to build complyctl binaries locally and send them to the Demo VM.
 For now, the complyctl binaries are built locally, so it is required the `https://github.com/complytime/complyctl.git` repository cloned and the minimal packages necessary to build Go code. More information could be found [here](https://github.com/complytime/complytime/blob/main/docs/INSTALLATION.md)
 
 Once complyctl can be built locally, there is a green light to move forward with the Ansible Playbooks.
 
 ```bash
 cd ../base_ansible_env
-# Make sure the "complytime_repo_dest" variable in this Playbook is aligned to the directory where the ComplyTime repository was previously cloned.
-ansible-playbook populate_complytime_vm.yml
+# Make sure the "complyctl_repo_dest" variable in this Playbook is aligned to the directory where the complyctl repository was previously cloned.
+ansible-playbook populate_complytime_dev_binaries.yml
 ```
 
 After running this Playbook a directory structure similar to this is expected in /home/ansible:
@@ -99,10 +99,12 @@ After running this Playbook a directory structure similar to this is expected in
 
 ### Populate OSCAL Content
 
-In order to speed up the tests, this repository contains OSCAL content transformed from CaC based on anssi_bp28_minimal profile for RHEL 9.
+In order to speed up the tests, OSCAL content transformed from CaC can be obtained from https://github.com/ComplianceAsCode/oscal-content.
+The default content set in variables is based on anssi_bp28_minimal profile for RHEL 9.
+Feel free to select your preferred content for tests by updating the Playbook variables with the respective URL.
 
 ```bash
-ansible-playbook populate_complytime_anssi_content.yml
+ansible-playbook populate_complytime_dev_content.yml
 ```
 
 After running this Playbook a directory structure similar to this is expected in /home/ansible:
@@ -114,31 +116,26 @@ After running this Playbook a directory structure similar to this is expected in
 │   └── share
 │       └── complytime
 │           ├── bundles
-│           │   └── anssi-component-definition.json
+│           │   └── test-component-definition.json
 │           ├── controls
-│           │   └── anssi-minimal-profile.json
-│           │   └── anssi-catalog.json
+│           │   └── test-profile.json
+│           │   └── test-catalog.json
 │           └── plugins
 │               ├── c2p-openscap-manifest.json
 │               └── openscap-plugin
 ...
 ```
 
-#### Regenerate ANSSI content
-
-For reference, the commands used with trestlebot to transform the ANSSI content can be found [here](https://github.com/complytime/complytime-demos/blob/main/CONTENT_TRANSFORMATION.md#generating-oscal-profile-from-rhel9-profile-with-anssi-content)
-
-After the transformation commands, the component definition and the chosen profile files were copied to `base_ansible_env/files` to be used with `populate_complytime_anssi_content.yml` Playbook.
-
 ### Generating OSCAL Content from CaC/content transformation
 
-The commands for transforming CaC/content are organized by policy_id in the [CONTENT_TRANSFORMATION.md](https://github.com/complytime/complytime-demos/blob/d403cb455f4bf6f4e4dd9e7d7fc724d9e0b0e321/CONTENT_TRANSFORMATION.md).
+For reference, the commands for transforming CaC/content are organized by policy_id in the [CONTENT_TRANSFORMATION.md](https://github.com/complytime/complytime-demos/blob/d403cb455f4bf6f4e4dd9e7d7fc724d9e0b0e321/CONTENT_TRANSFORMATION.md).
 
 ### Try complyctl commands
 
 Once the Demo VM is populated with ComplyTime binaries and OSCAL content, here are some nice commands to try:
 ```bash
 complyctl list
+complyctl info anssi_bp28_minimal
 complyctl plan anssi_bp28_minimal
 complyctl generate
 complyctl scan
