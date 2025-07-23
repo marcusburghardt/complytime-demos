@@ -11,8 +11,9 @@ Vagrant.configure("2") do |config|
   end
 
   config.vm.define "fedora" do |fedora|
-    fedora.vm.box = "fedora/41-cloud-base"
-    fedora.vm.hostname = "fedora"
+    fedora.vm.box_url  = "https://download.fedoraproject.org/pub/fedora/linux/releases/42/Cloud/x86_64/images/Fedora-Cloud-Base-Vagrant-libvirt-42-1.1.x86_64.vagrant.libvirt.box"
+    fedora.vm.box      = "f42-cloud-base"
+    fedora.vm.hostname = "fedora42"
   end
 
   # This will collect the SSH public key used to access the VM. Update the path if needed.
