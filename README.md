@@ -34,7 +34,7 @@ complytime-demos/
 │ └── populate_ansible_inventory.sh # Script to collect information from Vagrant VM and populate the Ansible inventory
 ├── scripts/                        # Supporting scripts (WIP)
 ├── CONTENT_TRANSFORMATION.md       # Examples of commands used in trestle-bot to generate OSCAL content based in ComplianceAsCode/content
-└── README.md                       # Main file to centralize instructions and other relevant information for demos.s
+└── README.md                       # Main file to centralize instructions and other relevant information for demos
 ```
 
 ## Get Your Hands Dirty
@@ -51,6 +51,7 @@ It is recommended to create a snapshot of the fresh VM if you plan to work on a 
 This way you can save time provisioning a new Vagrant Box.
 
 ### Base Fedora VM
+
 ```bash
 cd complytime-demos/base_vms/fedora
 vagrant up
@@ -140,4 +141,23 @@ complyctl plan anssi_bp28_minimal
 complyctl generate
 complyctl scan
 tree -a
+```
+
+## Automated Demos
+
+As the [complytime projects](https://github.com/complytime/) evolve and more features are included, more complete demos can be showed.
+But these demos can easily get long if executed manually. For this reason, this repository also provides Playbooks with automated demos.
+
+The Playbooks themselves serve as reference to manually explore in more details any specific step on-demand.
+With this context, the recommended way to consume these Playbooks is executing them and analyzing the outputs.
+Another recommendation is to connect to the Demo VM and trying to reproduce some commands from the Playbook.
+
+### demo_complyctl_fedora.yml
+
+#### Requirements
+
+- [Vagrant Box with Fedora 42](#base-fedora-vm)
+
+```bash
+ansible-playbook demo_complyctl_fedora.yml
 ```

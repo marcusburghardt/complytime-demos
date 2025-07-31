@@ -1,0 +1,215 @@
+---
+- name: "Simulates the use of main 'complyctl' features in a Fedora VM"
+  hosts: demo_vm
+  become: false
+  vars:
+    complytime_workspace: "/usr/share/complytime"
+    framework_id: cusp_fedora
+
+    # This file will be created at the end of Phase 1, edited in Phase 2 and consumed in Phase 3.
+    custom_config: config_plan.yml
+
+    # These directories are created locally to stored files fetched from testing VM
+    # They can be safely removed after the tests
+    local_directories:
+      - "./downloads_scan1"
+      - "./downloads_scan2"
+      - "./downloads_scan3"
+
+    # A list of files to be fetched from testing VM after each testing phase
+    generated_files:
+      - "config_plan.yml"
+      - "complytime/assessment-plan.json"
+      - "complytime/assessment-results.json"
+      - "complytime/assessment-results.md"
+
+    # This command is used multiple times to allow easier comparison between testing phases
+    cmd_tree: "tree -Dpugh --timefmt %H:%M -L1 complytime/"
+    cmd_help: |
+      Here are examples of nice commands that could be used to support Product and Compliance experts:
+        complyctl info {{ framework_id }}
+        complyctl info {{ framework_id }} --control cusp_fedora_4-1
+        complyctl info {{ framework_id }} --rule accounts_umask_etc_login_defs
+
+    # Variables used for fixing the system
+    var_sudo_logfile: "/var/log/sudo.log"
+    var_accounts_user_umask: "027"
+
+  tasks:
+    # Prep phase is used to ensure the reproducibility of this environment
+    - name: "Prep - Ensure removal of 'firewalld' package to not be compliant with 'package_firewalld_installed'"
+      ansible.builtin.dnf:
+        name:
+          - firewalld
+        state: absent
+      become: true
+
+    - name: "Prep - Ensure '/etc/sudoers' is not compliant with 'sudo_custom_logfile rule'"
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        line: 'Defaults logfile={{ var_sudo_logfile }}'
+        validate: /usr/sbin/visudo -cf %s
+        state: absent
+      become: true
+
+    - name: "Prep - Ensure '/etc/login.defs' is not compliant with 'accounts_umask_etc_login_defs'"
+      ansible.builtin.replace:
+        path: /etc/login.defs
+        regexp: ^(\s*)UMASK(\s+).*
+        replace: '\g<1>UMASK\g<2>022'
+      become: true
+
+    - name: "Prep - Ensure the complyctl and complyctl-openscap-plugin packages are installed"
+      ansible.builtin.dnf:
+        name:
+          - complyctl
+          - complyctl-openscap-plugin
+          - kernel # Due to an applicability issue in CaC: https://github.com/ComplianceAsCode/content/issues/13734
+        state: present
+      become: true
+
+    - name: "Prep - Ensure local directories to fetch generated files"
+      delegate_to: localhost
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        mode: '0755'
+      loop: "{{ local_directories }}"
+
+    # Phase 1: Scanning out-of-box
+    - name: "Starting the Phase 1 - Scanning out-of-box"
+      ansible.builtin.debug:
+        msg: "Phase 1 will execute the sequence of 'complyctl' commands out-of-box"
+
+    - name: "Phase 1 - Execute 'plan' command to create Assessment Plan"
+      ansible.builtin.command:
+        cmd: "complyctl plan {{ framework_id }}"
+      changed_when: true
+
+    - name: "Phase 1 - Execute 'generate' command to create policy and remediation"
+      ansible.builtin.command:
+        cmd: "complyctl generate"
+      changed_when: true
+
+    - name: "Phase 1 - Execute 'scan' command with Markdown results"
+      ansible.builtin.command:
+        cmd: "complyctl scan --with-md"
+      changed_when: true
+      become: true
+
+    - name: "Phase 1 - Run tree command to collect directory structure"
+      ansible.builtin.command:
+        cmd: "{{ cmd_tree }}"
+      changed_when: false
+      register: result_tree_scan1
+
+    - name: "Phase 1 - Generate a configuration file to customize Assessment Plan in Phase 2"
+      ansible.builtin.command:
+        cmd: "complyctl plan {{ framework_id }} --dry-run --out {{ custom_config }}"
+      changed_when: true
+
+    - name: "Phase 1 - Fetch files from remote host to local machine"
+      ansible.builtin.fetch:
+        src: "{{ item }}"
+        dest: "{{ local_directories[0] }}/"
+        flat: true
+      loop: "{{ generated_files }}"
+      become: true
+
+    # Phase 2: Scanning with a custom Assessment Plan
+    - name: "Starting the Phase 2 - Scanning with a custom Assessment Plan"
+      ansible.builtin.debug:
+        msg: "Phase 2 will edit the Assessment Plan before the same sequence of 'complyctl' commands"
+
+    - name: "Phase 2 - Edit customized configuration file for Assessment Plan"
+      ansible.builtin.copy:
+        src: "demo_cusp_config_plan.yml"
+        dest: "~/{{ custom_config }}"
+        mode: "0640"
+
+    - name: "Phase 2 - Hint for familiarizing yourself with the Framework content and editing the Assessment Plan"
+      ansible.builtin.debug:
+        msg: "{{ cmd_help.split('\n') }}"
+
+    - name: "Phase 2 - Execute 'plan' command with a configuration file to create a custom Assessment Plan"
+      ansible.builtin.command:
+        cmd: "complyctl plan {{ framework_id }} --scope-config {{ custom_config }}"
+      changed_when: true
+
+    - name: "Phase 2 - Execute 'generate' command after customized Assessment Plan"
+      ansible.builtin.command:
+        cmd: "complyctl generate"
+      changed_when: true
+
+    - name: "Phase 2 - Execute 'scan' command using custom Assessment Plan"
+      ansible.builtin.command:
+        cmd: "complyctl scan --with-md"
+      changed_when: true
+      become: true
+
+    - name: "Phase 2 - Run tree command to collect directory structure"
+      ansible.builtin.command:
+        cmd: "{{ cmd_tree }}"
+      changed_when: false
+      register: result_tree_scan2
+
+    - name: "Phase 2 - Fetch files from remote host to local machine"
+      ansible.builtin.fetch:
+        src: "{{ item }}"
+        dest: "{{ local_directories[1] }}/"
+        flat: true
+      become: true
+      loop: "{{ generated_files }}"
+
+    # Phase 3: Fixing the failed rules and scanning again
+    - name: "Starting the Phase 3 - Fixing the failed rules and scanning again"
+      ansible.builtin.debug:
+        msg: "Phase 3 will fix the failed rules and scan the system again using the same customized Assessment Plan"
+
+    - name: "Phase 3 - Fix package_firewalld_installed"
+      ansible.builtin.dnf:
+        name:
+          - firewalld
+        state: present
+      become: true
+
+    - name: "Phase 3 - Fix sudo_custom_logfile"
+      ansible.builtin.lineinfile:
+        path: /etc/sudoers
+        line: 'Defaults logfile={{ var_sudo_logfile }}'
+        validate: /usr/sbin/visudo -cf %s
+      become: true
+
+    - name: "Phase 3 - Fix accounts_umask_etc_login_defs"
+      ansible.builtin.replace:
+        path: /etc/login.defs
+        regexp: ^(\s*)UMASK(\s+).*
+        replace: '\g<1>UMASK\g<2>{{ var_accounts_user_umask }}'
+      become: true
+
+    - name: "Phase 3 - Execute 'scan' command again with same customized Assessment Plan"
+      ansible.builtin.command:
+        cmd: "complyctl scan --with-md"
+      changed_when: true
+      become: true
+
+    - name: "Phase 3 - Fetch files from remote host to local machine"
+      ansible.builtin.fetch:
+        src: "{{ item }}"
+        dest: "{{ local_directories[2] }}/"
+        flat: true
+      become: true
+      loop: "{{ generated_files }}"
+
+    - name: "Show output of tree commands to compare files before and after a custom Assessment Plan"
+      ansible.builtin.debug:
+        var: "{{ item }}"
+      loop:
+        - result_tree_scan1.stdout_lines
+        - result_tree_scan2.stdout_lines
+
+    - name: "Now explore the fetched files in your local directories"
+      ansible.builtin.debug:
+        msg: "{{ item }}"
+      loop: "{{ local_directories }}"
+...
