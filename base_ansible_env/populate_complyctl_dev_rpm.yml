@@ -1,29 +1,12 @@
 ---
-- name: "Prepare the environment to build complyctl RPMs in Fedora"
+- name: "Prepare the environment and build complyctl RPMs in Fedora"
   hosts: demo_vm
   become: false
   vars:
     repo_org: "complytime"
     repo_name: "complyctl"
     spec_file: "complyctl.spec"
-    complytime_workspace: "/usr/share/complytime"
-    catalog_file: "cusp-catalog.json"
-    profile_file: "cusp-profile.json"
-    component_definition_file: "cusp-component-definition.json"
-    fedora_catalog: "https://raw.githubusercontent.com/ComplianceAsCode/oscal-content/refs/heads/main/catalogs/cusp_fedora/catalog.json"
-    fedora_profile: "https://raw.githubusercontent.com/ComplianceAsCode/oscal-content/refs/heads/main/profiles/fedora-cusp_fedora-default/profile.json"
-    fedora_component_definition: "https://raw.githubusercontent.com/ComplianceAsCode/oscal-content/refs/heads/main/component-definitions/fedora/fedora-cusp_fedora-default/component-definition.json"
   tasks:
-    - name: "Ensure removal of previous content"
-      ansible.builtin.file:
-        path: "{{ item }}"
-        state: absent
-      loop:
-        - "{{ complytime_workspace }}/controls/{{ catalog_file }}"
-        - "{{ complytime_workspace }}/controls/{{ profile_file }}"
-        - "{{ complytime_workspace }}/bundles/{{ component_definition_file }}"
-      become: true
-
     - name: "Ensure removal of packages from previous installation"
       ansible.builtin.dnf:
         name:
@@ -130,29 +113,6 @@
         state: present
       become: true
 
-    - name: "Download OSCAL Catalog"
-      ansible.builtin.get_url:
-        url: "{{ fedora_catalog }}"
-        dest: "{{ complytime_workspace }}/controls/{{ catalog_file }}"
-        mode: "0644"
-      become: true
-
-    - name: "Download OSCAL Profile"
-      ansible.builtin.get_url:
-        url: "{{ fedora_profile }}"
-        dest: "{{ complytime_workspace }}/controls/{{ profile_file }}"
-        mode: "0644"
-      notify: "Update catalog references in Profile"
-      become: true
-
-    - name: "Download OSCAL Component Definition"
-      ansible.builtin.get_url:
-        url: "{{ fedora_component_definition }}"
-        dest: "{{ complytime_workspace }}/bundles/{{ component_definition_file }}"
-        mode: "0644"
-      notify: "Update profile references in Component Definition"
-      become: true
-
     - name: "Execute plan command to create Assessment Plan"
       ansible.builtin.command:
         cmd: "complyctl plan cusp_fedora"
@@ -162,19 +122,4 @@
       ansible.builtin.command:
         cmd: "complyctl generate"
       changed_when: false
-
-  handlers:
-    - name: "Update profile references in Component Definition"
-      ansible.builtin.replace:
-        path: "{{ complytime_workspace }}/bundles/{{ component_definition_file }}"
-        regexp: "trestle://.*"
-        replace: "trestle://controls/{{ profile_file }}\","
-      become: true
-
-    - name: "Update catalog references in Profile"
-      ansible.builtin.replace:
-        path: "{{ complytime_workspace }}/controls/{{ profile_file }}"
-        regexp: "trestle://.*"
-        replace: "trestle://controls/{{ catalog_file }}\","
-      become: true
 ...
