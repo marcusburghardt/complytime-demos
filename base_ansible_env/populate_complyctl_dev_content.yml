@@ -4,6 +4,7 @@
   become: false
   vars:
     # Currently using anssi_bp28_minimal, but can be changed by any content available in oscal-content
+    framework_id: "anssi_bp28_minimal"
     catalog: "https://github.com/ComplianceAsCode/oscal-content/raw/refs/heads/main/catalogs/anssi/catalog.json"
     profile: "https://github.com/ComplianceAsCode/oscal-content/raw/refs/heads/main/profiles/rhel9-anssi-minimal/profile.json"
     component_definition: "https://github.com/ComplianceAsCode/oscal-content/raw/refs/heads/main/component-definitions/rhel9/rhel9-anssi-minimal/component-definition.json"
@@ -33,6 +34,13 @@
         dest: "{{ complytime_workspace }}/bundles/{{ component_definition_file }}"
         mode: "0644"
       notify: "Update profile references"
+
+    - name: "Check if the downloaded OSCAL content is valid"
+      ansible.builtin.shell:
+        cmd: "complyctl list --plain | grep -q '{{ framework_id }}\\b'"
+      register: result
+      changed_when: false
+      failed_when: result.rc != 0
 
   handlers:
     - name: "Update profile references"

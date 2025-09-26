@@ -42,7 +42,7 @@ complytime-demos/
 ### Base RHEL 9 VM
 
 ```bash
-git clone https://github.com/marcusburghardt/complytime-demos.git
+git clone https://github.com/complytime/complytime-demos.git
 cd complytime-demos/base_vms/rhel9
 vagrant up
 ```
@@ -71,7 +71,7 @@ ssh ansible@192.168.122.161
 
 ### Populate complyctl binaries
 
-Execute the `populate_complytime_dev_binaries.yml` Playbook to build complyctl binaries locally and send them to the Demo VM.
+Execute the `populate_complyctl_dev_binaries.yml` Playbook to build complyctl binaries locally and send them to the Demo VM.
 For now, the complyctl binaries are built locally, so it is required the `https://github.com/complytime/complyctl.git` repository cloned and the minimal packages necessary to build Go code. More information could be found [here](https://github.com/complytime/complytime/blob/main/docs/INSTALLATION.md)
 
 Once complyctl can be built locally, there is a green light to move forward with the Ansible Playbooks.
@@ -79,7 +79,7 @@ Once complyctl can be built locally, there is a green light to move forward with
 ```bash
 cd ../base_ansible_env
 # Make sure the "complyctl_repo_dest" variable in this Playbook is aligned to the directory where the complyctl repository was previously cloned.
-ansible-playbook populate_complytime_dev_binaries.yml
+ansible-playbook populate_complyctl_dev_binaries.yml
 ```
 
 After running this Playbook a directory structure similar to this is expected in /home/ansible:
@@ -102,10 +102,16 @@ After running this Playbook a directory structure similar to this is expected in
 
 In order to speed up the tests, OSCAL content transformed from CaC can be obtained from https://github.com/ComplianceAsCode/oscal-content.
 The default content set in variables is based on anssi_bp28_minimal profile for RHEL 9.
-Feel free to select your preferred content for tests by updating the Playbook variables with the respective URL.
+Feel free to select your preferred content for tests by updating the Playbook variables with the respective URL. For example, to use the `fedora-cusp` content from the `ComplianceAsCode/oscal-content` repository, you can use the following variables:
+
+```yaml
+   catalog: "https://raw.githubusercontent.com/ComplianceAsCode/oscal-content/refs/heads/main/catalogs/cusp_fedora/catalog.json"
+   profile: "https://raw.githubusercontent.com/ComplianceAsCode/oscal-content/refs/heads/main/profiles/fedora-cusp_fedora-default/profile.json"
+   component_definition: "https://raw.githubusercontent.com/ComplianceAsCode/oscal-content/refs/heads/main/component-definitions/fedora/fedora-cusp_fedora-default/component-definition.json"
+```
 
 ```bash
-ansible-playbook populate_complytime_dev_content.yml
+ansible-playbook populate_complyctl_dev_content.yml
 ```
 
 After running this Playbook a directory structure similar to this is expected in /home/ansible:
