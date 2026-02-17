@@ -1,0 +1,11 @@
+repositories:
+  - url: https://github.com/complytime/complyctl
+    branches:
+      - main
+    specs:
+      - builtin:github/branch-rules.yaml
+  - url: https://github.com/complytime/complytime-demos
+    branches:
+      - main
+    specs:
+      - builtin:github/branch-rules.yaml

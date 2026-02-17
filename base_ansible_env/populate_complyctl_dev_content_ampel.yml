@@ -1,0 +1,47 @@
+---
+- name: "Populate Demo VM with testing content from Upstream"
+  hosts: demo_vm
+  become: false
+  vars:
+    complytime_workspace: "~/.local/share/complytime"
+
+    # AMPEL branch protection OSCAL content (local files)
+    ampel_framework_id: "ampel_bp"
+    ampel_catalog_file: "ampel-catalog.json"
+    ampel_profile_file: "ampel-profile.json"
+    ampel_component_definition_file: "ampel-component-definition.json"
+
+  tasks:
+    # --- AMPEL Branch Protection OSCAL Content (local files) ---
+
+    - name: "Copy AMPEL Catalog to Demo VM"
+      ansible.builtin.copy:
+        src: "files/ampel-catalog.json"
+        dest: "{{ complytime_workspace }}/controls/{{ ampel_catalog_file }}"
+        mode: "0644"
+
+    - name: "Copy AMPEL Profile to Demo VM"
+      ansible.builtin.copy:
+        src: "files/ampel-profile.json"
+        dest: "{{ complytime_workspace }}/controls/{{ ampel_profile_file }}"
+        mode: "0644"
+
+    - name: "Copy AMPEL Component Definition to Demo VM"
+      ansible.builtin.copy:
+        src: "files/ampel-component-definition.json"
+        dest: "{{ complytime_workspace }}/bundles/{{ ampel_component_definition_file }}"
+        mode: "0644"
+
+    - name: "Check if the AMPEL OSCAL content is valid"
+      ansible.builtin.shell:
+        cmd: "complyctl list --plain | grep -q '{{ ampel_framework_id }}\\b'"
+      register: ampel_result
+      changed_when: false
+      failed_when: ampel_result.rc != 0
+
+    - name: "Copy AMPEL configuration files to Demo VM"
+      ansible.builtin.copy:
+        src: "files/ampel-targets.yaml"
+        dest: "{{ complytime_workspace }}/ampel-targets.yaml"
+        mode: "0640"
+...
