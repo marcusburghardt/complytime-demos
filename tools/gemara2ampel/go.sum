@@ -17,8 +17,8 @@ github.com/carabiner-dev/signer v0.3.5 h1:PUzXLHMoaIc3A4+tlxS/syb4PYwl0UU55viOLG
 github.com/carabiner-dev/signer v0.3.5/go.mod h1:D3PsTzKupkHmAa7kZ7WqmMkba8KCXDJL6+vuaQjuzt8=
 github.com/carabiner-dev/vcslocator v0.3.3-0.20260110024210-a5602e9845b5 h1:+p6WdncLRAgDGpGy5VWmcy49MTRMCrGsCAZxIth4UmA=
 github.com/carabiner-dev/vcslocator v0.3.3-0.20260110024210-a5602e9845b5/go.mod h1:B3JFnwypdrRVQPJKNK3BOlRw6DbgmsiHGmoT3ZELpp8=
-github.com/cloudflare/circl v1.6.2 h1:hL7VBpHHKzrV5WTfHCaBsgx/HGbBYlgrwvNXEVDYYsQ=
-github.com/cloudflare/circl v1.6.2/go.mod h1:2eXP6Qfat4O/Yhh8BznvKnJ+uzEoTQ6jVKJRn81BiS4=
+github.com/cloudflare/circl v1.6.3 h1:9GPOhQGF9MCYUeXyMYlqTR6a5gTrgR/fBLXvUgtVcg8=
+github.com/cloudflare/circl v1.6.3/go.mod h1:2eXP6Qfat4O/Yhh8BznvKnJ+uzEoTQ6jVKJRn81BiS4=
 github.com/cpuguy83/go-md2man/v2 v2.0.6/go.mod h1:oOW0eioCTA6cOiMLiUPZOpcVxMig6NIQQ7OS05n1F4g=
 github.com/cyphar/filepath-securejoin v0.6.1 h1:5CeZ1jPXEiYt3+Z6zqprSAgSWiggmpVyciv8syjIpVE=
 github.com/cyphar/filepath-securejoin v0.6.1/go.mod h1:A8hd4EnAeyujCJRrICiOWqjS1AX0a9kM5XL+NwKoYSc=
