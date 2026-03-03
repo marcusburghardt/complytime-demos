@@ -1,0 +1,14 @@
+targets:
+  github-repos:
+    repositories:
+{% for repo in ampel_repositories %}
+      - url: {{ repo.url }}
+        branches:
+{% for branch in repo.branches %}
+          - {{ branch }}
+{% endfor %}
+        specs:
+{% for spec in repo.specs | default(['builtin:github/branch-rules.yaml']) %}
+          - {{ spec }}
+{% endfor %}
+{% endfor %}

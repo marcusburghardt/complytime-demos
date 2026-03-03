@@ -5,8 +5,13 @@
   vars:
     complyctl_workdir: "~/complyctl-demo"
     registry_url: "http://localhost:8765"
-    policy_id: "cis-fedora"
+    openscap_policy_id: "cis-fedora"
     openscap_profile: "cis_workstation_l1"
+    ampel_policy_id: "ampel-bp"
+    ampel_repositories:
+      - url: "https://github.com/complytime/complytime-demos"
+        branches: ["main"]
+        specs: ["builtin:github/branch-rules.yaml"]
 
   tasks:
     - name: "Create working directory for complyctl demo"
@@ -42,13 +47,41 @@
         cmd: "~/bin/complyctl get"
         chdir: "{{ complyctl_workdir }}"
 
-    - name: "Validate policies are available"
+    - name: "Validate OpenSCAP policy is available"
       ansible.builtin.shell:
-        cmd: "~/bin/complyctl list | grep -q '{{ policy_id }}'"
+        cmd: "~/bin/complyctl list | grep -q '{{ openscap_policy_id }}'"
         chdir: "{{ complyctl_workdir }}"
-      register: result
+      register: result_openscap
       changed_when: false
-      failed_when: result.rc != 0
+      failed_when: result_openscap.rc != 0
+
+    - name: "Validate AMPEL policy is available"
+      ansible.builtin.shell:
+        cmd: "~/bin/complyctl list | grep -q '{{ ampel_policy_id }}'"
+        chdir: "{{ complyctl_workdir }}"
+      register: result_ampel
+      changed_when: false
+      failed_when: result_ampel.rc != 0
+
+    # --- AMPEL plugin workspace setup ---
+
+    - name: "Create AMPEL policy directory"
+      ansible.builtin.file:
+        path: "{{ complyctl_workdir }}/.complytime/ampel/policy"
+        state: directory
+        mode: "0750"
+
+    - name: "Copy AMPEL granular policy files"
+      ansible.builtin.copy:
+        src: "files/ampel-policies/"
+        dest: "{{ complyctl_workdir }}/.complytime/ampel/policy/"
+        mode: "0644"
+
+    - name: "Create AMPEL targets configuration"
+      ansible.builtin.template:
+        src: ampel-targets.yaml.j2
+        dest: "{{ complyctl_workdir }}/.complytime/ampel/ampel-targets.yaml"
+        mode: "0640"
 
     - name: "Run complyctl doctor for workspace health check"
       ansible.builtin.command:

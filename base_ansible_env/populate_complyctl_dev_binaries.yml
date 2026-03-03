@@ -52,15 +52,28 @@
         dest: "~/bin/mock-oci-registry"
         mode: "0750"
 
-    # NOTE: AMPEL plugin tasks are deferred. The ampel-plugin needs to be
-    # ported to the new gRPC provider protocol before it can be used with
-    # the Gemara-native complyctl. Once ported, the AMPEL provider binary
-    # should be placed at ~/.complytime/providers/complyctl-provider-ampel
-    #
-    # Deferred tasks:
-    # - Copy AMPEL provider binary
-    # - Copy AMPEL policy files
-    # - Copy AMPEL configuration files
-    # - Install AMPEL tools (snappy, ampel)
-    # - Configure PATH for AMPEL tools
+    - name: "Copy AMPEL provider binary to Demo VM"
+      ansible.builtin.copy:
+        src: "{{ complyctl_repo_dest }}/bin/ampel-plugin"
+        dest: "{{ provider_dir }}/complyctl-provider-ampel"
+        mode: "0750"
+
+    - name: "Install snappy tool"
+      ansible.builtin.command:
+        cmd: "go install github.com/carabiner-dev/snappy@latest"
+      environment:
+        GOPATH: "{{ ansible_env.HOME }}/go"
+
+    - name: "Install ampel tool"
+      ansible.builtin.command:
+        cmd: "go install github.com/carabiner-dev/ampel/cmd/ampel@latest"
+      environment:
+        GOPATH: "{{ ansible_env.HOME }}/go"
+
+    - name: "Ensure ~/go/bin is in PATH via .bashrc"
+      ansible.builtin.lineinfile:
+        path: "{{ ansible_env.HOME }}/.bashrc"
+        line: 'export PATH="$HOME/go/bin:$PATH"'
+        regexp: 'export PATH="\$HOME/go/bin'
+        state: present
 ...
