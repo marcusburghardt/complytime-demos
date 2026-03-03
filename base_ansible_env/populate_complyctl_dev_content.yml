@@ -1,57 +1,59 @@
 ---
-- name: "Populate Demo VM with testing content from Upstream"
+- name: "Populate Demo VM with compliance policies via mock-oci-registry"
   hosts: demo_vm
   become: false
   vars:
-    # Currently using anssi_bp28_minimal, but can be changed by any content available in oscal-content
-    framework_id: "anssi_bp28_minimal"
-    catalog: "https://github.com/ComplianceAsCode/oscal-content/raw/refs/heads/main/catalogs/anssi/catalog.json"
-    profile: "https://github.com/ComplianceAsCode/oscal-content/raw/refs/heads/main/profiles/rhel9-anssi-minimal/profile.json"
-    component_definition: "https://github.com/ComplianceAsCode/oscal-content/raw/refs/heads/main/component-definitions/rhel9/rhel9-anssi-minimal/component-definition.json"
-
-    catalog_file: "test-catalog.json"
-    profile_file: "test-profile.json"
-    component_definition_file: "test-component-definition.json"
-    complytime_workspace: "~/.local/share/complytime"
+    complyctl_workdir: "~/complyctl-demo"
+    registry_url: "http://localhost:8765"
+    policy_id: "cis-fedora"
+    openscap_profile: "cis_workstation_l1"
 
   tasks:
-    - name: "Download OSCAL Catalog"
-      ansible.builtin.get_url:
-        url: "{{ catalog }}"
-        dest: "{{ complytime_workspace }}/controls/{{ catalog_file }}"
-        mode: "0644"
+    - name: "Create working directory for complyctl demo"
+      ansible.builtin.file:
+        path: "{{ complyctl_workdir }}"
+        state: directory
+        mode: "0750"
 
-    - name: "Download OSCAL Profile"
-      ansible.builtin.get_url:
-        url: "{{ profile }}"
-        dest: "{{ complytime_workspace }}/controls/{{ profile_file }}"
-        mode: "0644"
-      notify: "Update catalog references"
+    - name: "Create complytime.yaml configuration"
+      ansible.builtin.template:
+        src: complytime.yaml.j2
+        dest: "{{ complyctl_workdir }}/complytime.yaml"
+        mode: "0640"
 
-    - name: "Download OSCAL Component Definition"
-      ansible.builtin.get_url:
-        url: "{{ component_definition }}"
-        dest: "{{ complytime_workspace }}/bundles/{{ component_definition_file }}"
-        mode: "0644"
-      notify: "Update profile references"
-
-    - name: "Check if the downloaded OSCAL content is valid"
+    - name: "Start mock-oci-registry as a background process"
       ansible.builtin.shell:
-        cmd: "complyctl list --plain | grep -q '{{ framework_id }}\\b'"
+        cmd: "nohup ~/bin/mock-oci-registry &"
+      async: 10
+      poll: 0
+
+    - name: "Wait for mock-oci-registry to be ready"
+      ansible.builtin.uri:
+        url: "{{ registry_url }}/v2/"
+        method: GET
+        status_code: 200
+      register: registry_health
+      retries: 10
+      delay: 2
+      until: registry_health.status == 200
+
+    - name: "Fetch policies with complyctl get"
+      ansible.builtin.command:
+        cmd: "~/bin/complyctl get"
+        chdir: "{{ complyctl_workdir }}"
+
+    - name: "Validate policies are available"
+      ansible.builtin.shell:
+        cmd: "~/bin/complyctl list | grep -q '{{ policy_id }}'"
+        chdir: "{{ complyctl_workdir }}"
       register: result
       changed_when: false
       failed_when: result.rc != 0
 
-  handlers:
-    - name: "Update profile references"
-      ansible.builtin.replace:
-        path: "{{ complytime_workspace }}/bundles/{{ component_definition_file }}"
-        regexp: "trestle://.*"
-        replace: "trestle://controls/{{ profile_file }}\","
-
-    - name: "Update catalog references"
-      ansible.builtin.replace:
-        path: "{{ complytime_workspace }}/controls/{{ profile_file }}"
-        regexp: "trestle://.*"
-        replace: "trestle://controls/{{ catalog_file }}\","
+    - name: "Run complyctl doctor for workspace health check"
+      ansible.builtin.command:
+        cmd: "~/bin/complyctl doctor"
+        chdir: "{{ complyctl_workdir }}"
+      register: result_doctor
+      changed_when: false
 ...

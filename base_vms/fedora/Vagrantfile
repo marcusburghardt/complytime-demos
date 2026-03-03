@@ -42,7 +42,7 @@ Vagrant.configure("2") do |config|
   dnf install -y qemu-guest-agent openssh-clients openssh-server
 
   # Install some useful packages
-  dnf install -y git python3-pip tar tree vim golang
+  dnf install -y git python3-pip tar tree vim golang jq curl
   dnf install -y --nobest openscap-scanner openscap-engine-sce scap-security-guide
 
   # Upgrade the system

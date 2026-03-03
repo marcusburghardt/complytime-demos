@@ -1,4 +1,13 @@
 ---
+# DEFERRED: This playbook requires the ampel-plugin to be ported to the new
+# gRPC provider protocol used by Gemara-native complyctl. Until then, this
+# playbook is not part of the standard workflow and should not be run.
+#
+# The AMPEL provider binary should be placed at:
+#   ~/.complytime/providers/complyctl-provider-ampel
+#
+# See: https://github.com/complytime/complyctl (branch 001-gemara-native-workflow)
+
 - name: "Populate Demo VM with testing content from Upstream"
   hosts: demo_vm
   become: false

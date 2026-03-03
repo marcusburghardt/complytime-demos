@@ -5,7 +5,7 @@
   vars:
     # Update according to where https://github.com/complytime/complyctl.git was cloned
     complyctl_repo_dest: "~/GIT/ProdSec/complyctl"
-    complyctl_workspace: "~/.local/share/complytime"
+    provider_dir: "~/.complytime/providers"
 
   tasks:
     - name: "Ensure removal of packages from previous installation"
@@ -34,92 +34,33 @@
         dest: "~/bin/complyctl"
         mode: "0750"
 
-    - name: "Ensure COMPLYTIME_DEV_MODE=1 is set for the testing user"
-      ansible.builtin.lineinfile:
-        path: ~/.bashrc
-        line: 'export COMPLYTIME_DEV_MODE=1'
-        insertafter: EOF
-        state: present
-
-    - name: "Check existing complyctl directories in case there is already a Workspace"
-      ansible.builtin.stat:
-        path: "{{ complyctl_workspace }}"
-      register: result_complyctl_workspace
-
-    - name: "Initialize complyctl to ensure the Workspace is created"
-      ansible.builtin.command:
-        cmd: "~/bin/complyctl list"
-      environment:
-        COMPLYTIME_DEV_MODE: "1"
-      failed_when: false
-      changed_when: not result_complyctl_workspace.stat.exists
-      when: not result_complyctl_workspace.stat.exists
-
-    - name: "Copy OpenSCAP plugin binary to Demo VM"
-      ansible.builtin.copy:
-        src: "{{ complyctl_repo_dest }}/bin/openscap-plugin"
-        dest: "{{ complyctl_workspace }}/plugins"
-        mode: "0750"
-
-    - name: "Compute SHA256 checksum of the openscap-plugin binary"
-      ansible.builtin.stat:
-        path: "{{ complyctl_workspace }}/plugins/openscap-plugin"
-        checksum_algorithm: sha256
-      register: result_openscap_plugin_checksum
-
-    - name: "Create or update the openscap-plugin manifest"
-      ansible.builtin.template:
-        src: c2p-openscap-manifest.json.j2
-        dest: "{{ complyctl_workspace }}/plugins/c2p-openscap-manifest.json"
-        mode: "0640"
-
-    - name: "Copy AMPEL plugin binary to Demo VM"
-      ansible.builtin.copy:
-        src: "{{ complyctl_repo_dest }}/bin/ampel-plugin"
-        dest: "{{ complyctl_workspace }}/plugins"
-        mode: "0750"
-
-    - name: "Compute SHA256 checksum of the ampel-plugin binary"
-      ansible.builtin.stat:
-        path: "{{ complyctl_workspace }}/plugins/ampel-plugin"
-        checksum_algorithm: sha256
-      register: result_ampel_plugin_checksum
-
-    - name: "Create or update the ampel-plugin manifest"
-      ansible.builtin.template:
-        src: c2p-ampel-manifest.json.j2
-        dest: "{{ complyctl_workspace }}/plugins/c2p-ampel-manifest.json"
-        mode: "0640"
-
-    - name: "Ensure AMPEL policies directory exists on Demo VM"
+    - name: "Ensure providers directory exists"
       ansible.builtin.file:
-        path: "{{ complyctl_workspace }}/ampel-policies"
+        path: "{{ provider_dir }}"
         state: directory
         mode: "0750"
 
-    - name: "Copy granular AMPEL policy files to Demo VM"
+    - name: "Copy OpenSCAP provider binary to Demo VM"
       ansible.builtin.copy:
-        src: "files/ampel-policies/"
-        dest: "{{ complyctl_workspace }}/ampel-policies/"
-        mode: "0640"
+        src: "{{ complyctl_repo_dest }}/bin/openscap-plugin"
+        dest: "{{ provider_dir }}/complyctl-provider-openscap"
+        mode: "0750"
 
-    - name: "Copy AMPEL configuration files to Demo VM"
+    - name: "Copy mock-oci-registry binary to Demo VM"
       ansible.builtin.copy:
-        src: "files/ampel-targets.yaml"
-        dest: "{{ complyctl_workspace }}/ampel-targets.yaml"
-        mode: "0640"
+        src: "{{ complyctl_repo_dest }}/bin/mock-oci-registry"
+        dest: "~/bin/mock-oci-registry"
+        mode: "0750"
 
-    - name: "Install AMPEL tools using go installation"
-      ansible.builtin.command:
-        cmd: "go install {{ item }}"
-      with_items:
-        - github.com/carabiner-dev/snappy@latest
-        - github.com/carabiner-dev/ampel/cmd/ampel@latest
-
-    - name: "Ensure the AMPEL tools are in the PATH"
-      ansible.builtin.lineinfile:
-        path: ~/.bashrc
-        line: 'export PATH=$PATH:$HOME/go/bin'
-        insertafter: EOF
-        state: present
+    # NOTE: AMPEL plugin tasks are deferred. The ampel-plugin needs to be
+    # ported to the new gRPC provider protocol before it can be used with
+    # the Gemara-native complyctl. Once ported, the AMPEL provider binary
+    # should be placed at ~/.complytime/providers/complyctl-provider-ampel
+    #
+    # Deferred tasks:
+    # - Copy AMPEL provider binary
+    # - Copy AMPEL policy files
+    # - Copy AMPEL configuration files
+    # - Install AMPEL tools (snappy, ampel)
+    # - Configure PATH for AMPEL tools
 ...
