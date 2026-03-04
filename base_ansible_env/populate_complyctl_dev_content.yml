@@ -8,10 +8,10 @@
     openscap_policy_id: "cis-fedora"
     openscap_profile: "cis_workstation_l1"
     ampel_policy_id: "ampel-bp"
-    ampel_repositories:
-      - url: "https://github.com/complytime/complytime-demos"
-        branches: ["main"]
-        specs: ["builtin:github/branch-rules.yaml"]
+    ampel_targets:
+      - id: "complytime-demos"
+        url: "https://github.com/complytime/complytime-demos"
+        specs: "builtin:github/branch-rules.yaml"
 
   tasks:
     - name: "Create working directory for complyctl demo"
