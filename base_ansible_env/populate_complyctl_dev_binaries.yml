@@ -6,6 +6,9 @@
     # Update according to where https://github.com/complytime/complyctl.git was cloned
     complyctl_repo_dest: "~/GIT/ProdSec/complyctl"
     provider_dir: "~/.complytime/providers"
+    # Pin third-party tool versions to avoid breakage from upstream Go version bumps
+    snappy_version: "v0.1.4"
+    ampel_version: "v1.0.0"
 
   tasks:
     - name: "Ensure removal of packages from previous installation"
@@ -60,13 +63,13 @@
 
     - name: "Install snappy tool"
       ansible.builtin.command:
-        cmd: "go install github.com/carabiner-dev/snappy@latest"
+        cmd: "go install github.com/carabiner-dev/snappy@{{ snappy_version }}"
       environment:
         GOPATH: "{{ ansible_env.HOME }}/go"
 
     - name: "Install ampel tool"
       ansible.builtin.command:
-        cmd: "go install github.com/carabiner-dev/ampel/cmd/ampel@latest"
+        cmd: "go install github.com/carabiner-dev/ampel/cmd/ampel@{{ ampel_version }}"
       environment:
         GOPATH: "{{ ansible_env.HOME }}/go"
 
