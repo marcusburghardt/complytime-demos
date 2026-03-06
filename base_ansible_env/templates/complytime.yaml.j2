@@ -1,0 +1,28 @@
+policies:
+  - url: {{ registry_url }}/policies/cis-fedora-l1-workstation
+    id: {{ openscap_policy_id | default('cis-fedora') }}
+  - url: {{ registry_url }}/policies/ampel-branch-protection
+    id: {{ ampel_policy_id | default('ampel-bp') }}
+targets:
+  - id: local
+    policies:
+      - {{ openscap_policy_id | default('cis-fedora') }}
+    variables:
+      profile: {{ openscap_profile | default('cis_workstation_l1') }}
+{% for repo in ampel_targets %}
+  - id: {{ repo.id }}
+    policies:
+      - {{ ampel_policy_id | default('ampel-bp') }}
+    variables:
+      url: {{ repo.url }}
+      specs: {{ repo.specs }}
+{% if repo.branches is defined %}
+      branches: {{ repo.branches }}
+{% endif %}
+{% if repo.platform is defined %}
+      platform: {{ repo.platform }}
+{% endif %}
+{% if repo.access_token is defined %}
+      access_token: {{ repo.access_token }}
+{% endif %}
+{% endfor %}

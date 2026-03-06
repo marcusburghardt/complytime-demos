@@ -5,7 +5,10 @@
   vars:
     # Update according to where https://github.com/complytime/complyctl.git was cloned
     complyctl_repo_dest: "~/GIT/ProdSec/complyctl"
-    complyctl_workspace: "~/.local/share/complytime"
+    provider_dir: "~/.complytime/providers"
+    # Pin third-party tool versions to avoid breakage from upstream Go version bumps
+    snappy_version: "v0.1.4"
+    ampel_version: "v1.0.0"
 
   tasks:
     - name: "Ensure removal of packages from previous installation"
@@ -34,42 +37,46 @@
         dest: "~/bin/complyctl"
         mode: "0750"
 
-    - name: "Ensure COMPLYTIME_DEV_MODE=1 is set for the testing user"
-      ansible.builtin.lineinfile:
-        path: ~/.bashrc
-        line: 'export COMPLYTIME_DEV_MODE=1'
-        insertafter: EOF
-        state: present
-
-    - name: "Check existing complyctl directories in case there is already a Workspace"
-      ansible.builtin.stat:
-        path: "{{ complyctl_workspace }}"
-      register: result_complyctl_workspace
-
-    - name: "Initialize complyctl to ensure the Workspace is created"
-      ansible.builtin.command:
-        cmd: "~/bin/complyctl list"
-      environment:
-        COMPLYTIME_DEV_MODE: "1"
-      failed_when: false
-      changed_when: not result_complyctl_workspace.stat.exists
-      when: not result_complyctl_workspace.stat.exists
-
-    - name: "Copy OpenSCAP plugin binary to Demo VM"
-      ansible.builtin.copy:
-        src: "{{ complyctl_repo_dest }}/bin/openscap-plugin"
-        dest: "{{ complyctl_workspace }}/plugins"
+    - name: "Ensure providers directory exists"
+      ansible.builtin.file:
+        path: "{{ provider_dir }}"
+        state: directory
         mode: "0750"
 
-    - name: "Compute SHA256 checksum of the openscap-plugin binary"
-      ansible.builtin.stat:
-        path: "{{ complyctl_workspace }}/plugins/openscap-plugin"
-        checksum_algorithm: sha256
-      register: result_plugin_checksum
+    - name: "Copy OpenSCAP provider binary to Demo VM"
+      ansible.builtin.copy:
+        src: "{{ complyctl_repo_dest }}/bin/openscap-plugin"
+        dest: "{{ provider_dir }}/complyctl-provider-openscap"
+        mode: "0750"
 
-    - name: "Create or update the openscap-plugin manifest"
-      ansible.builtin.template:
-        src: c2p-openscap-manifest.json.j2
-        dest: "{{ complyctl_workspace }}/plugins/c2p-openscap-manifest.json"
-        mode: "0640"
+    - name: "Copy mock-oci-registry binary to Demo VM"
+      ansible.builtin.copy:
+        src: "{{ complyctl_repo_dest }}/bin/mock-oci-registry"
+        dest: "~/bin/mock-oci-registry"
+        mode: "0750"
+
+    - name: "Copy AMPEL provider binary to Demo VM"
+      ansible.builtin.copy:
+        src: "{{ complyctl_repo_dest }}/bin/ampel-plugin"
+        dest: "{{ provider_dir }}/complyctl-provider-ampel"
+        mode: "0750"
+
+    - name: "Install snappy tool"
+      ansible.builtin.command:
+        cmd: "go install github.com/carabiner-dev/snappy@{{ snappy_version }}"
+      environment:
+        GOPATH: "{{ ansible_env.HOME }}/go"
+
+    - name: "Install ampel tool"
+      ansible.builtin.command:
+        cmd: "go install github.com/carabiner-dev/ampel/cmd/ampel@{{ ampel_version }}"
+      environment:
+        GOPATH: "{{ ansible_env.HOME }}/go"
+
+    - name: "Ensure ~/go/bin is in PATH via .bashrc"
+      ansible.builtin.lineinfile:
+        path: "{{ ansible_env.HOME }}/.bashrc"
+        line: 'export PATH="$HOME/go/bin:$PATH"'
+        regexp: 'export PATH="\$HOME/go/bin'
+        state: present
 ...
