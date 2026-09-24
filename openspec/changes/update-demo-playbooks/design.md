@@ -38,7 +38,9 @@ See proposal.md for motivation. The key constraints shaping this design:
 **Non-Goals:**
 
 - Signature verification of OCI artifacts (adds complexity, can be layered later).
-- Complypack usage (not needed for these two providers/policies).
+- ~~Complypack usage~~: Now required for the ampel provider. The complypack OCI
+  artifact provides provider-specific policy files that `complyctl generate`
+  needs to produce scan artifacts.
 - OPA provider demo (no published OPA policy on quay.io yet).
 - Changes to the Vagrantfile or existing development playbooks.
 - Centralized variables across demo playbooks (each is self-contained by design).

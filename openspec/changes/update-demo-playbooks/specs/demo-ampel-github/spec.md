@@ -100,8 +100,11 @@ The playbook SHALL create the complyctl workspace directory at
 `~/complyctl-demo-ampel` and a `complytime.yaml` configuration file inline. The
 configuration SHALL reference the ampel branch-protection policy OCI artifact at
 `quay.io/complytime/policies-ampel-branch-protection:latest` with policy ID
-`ampel-bp`. The configuration SHALL define a target `complytime-demos` with
-variables `url: https://github.com/complytime/complytime-demos` and
+`ampel-bp`. The configuration SHALL include the ampel complypack OCI artifact at
+`quay.io/complytime/complypack-ampel-branch-protection:latest` with ID
+`ampel-bp-pack`, which provides the provider-specific policy files required by
+`complyctl generate`. The configuration SHALL define a target `complytime-demos`
+with variables `url: https://github.com/complytime/complytime-demos` and
 `specs: builtin:github/branch-rules.yaml`.
 
 > **Note**: The `:latest` OCI tag is used intentionally for demo simplicity.
