@@ -1,169 +1,252 @@
 ---
-- name: "Simulates the use of main 'complyctl' features in a Fedora VM"
+- name: "Demonstrates complyctl with OpenSCAP provider on a Fedora VM"
   hosts: demo_vm
   become: false
   vars:
     complyctl_workdir: "~/complyctl-demo"
-    policy_id: cis-fedora
+    policy_id: cis-fedora-l1-server
 
-    # These directories are created locally to stored files fetched from testing VM
-    # They can be safely removed after the tests
+    # These directories are created locally to store files fetched from the VM.
+    # They can be safely removed after the demo.
     local_directories:
       - "./downloads_scan1"
       - "./downloads_scan2"
 
-    # A list of files to be fetched from testing VM after each testing phase
-    generated_files:
-      - ".complytime/scan/evaluation-log-*.yaml"
-      - "report-*.md"
-      - "assessment-results-*.json"
+    # This command is used multiple times to allow easier comparison between
+    # testing phases.
+    cmd_tree: "tree -Dpugh --timefmt %H:%M -L4 .complytime/"
 
-    # This command is used multiple times to allow easier comparison between testing phases
-    cmd_tree: "tree -Dpugh --timefmt %H:%M -L2 .complytime/"
-
-    # Variables used for fixing the system
+    # Variables used for rule remediation
     var_sudo_logfile: "/var/log/sudo.log"
     var_accounts_user_umask: "027"
 
   tasks:
-    # Prep phase is used to ensure the reproducibility of this environment
-    - name: "Prep - Ensure removal of 'firewalld' package to not be compliant with 'package_firewalld_installed'"
+    # ──────────────────────────────────────────────────────────────────────
+    # Setup - Install tools, create workspace, fetch policies
+    # ──────────────────────────────────────────────────────────────────────
+
+    - name: "Setup - Install complyctl, OpenSCAP provider, and scanner" # noqa: package-latest
+      ansible.builtin.dnf:
+        name:
+          - complyctl
+          - complytime-providers-openscap
+          - openscap-scanner
+          - scap-security-guide
+        state: latest
+      become: true
+
+    - name: "Setup - Create complyctl workspace directory"
+      ansible.builtin.file:
+        path: "{{ complyctl_workdir }}/.complytime"
+        state: directory
+        mode: "0755"
+
+    - name: "Setup - Create complytime.yaml configuration"
+      ansible.builtin.copy:
+        dest: "{{ complyctl_workdir }}/.complytime/complytime.yaml"
+        mode: "0644"
+        content: |
+          policies:
+            - url: quay.io/complytime/policies-cis-fedora-l1-server:latest
+              id: cis-fedora-l1-server
+          targets:
+            - id: fedora-vm
+              policies:
+                - cis-fedora-l1-server
+              variables:
+                profile: cis_server_l1
+
+    - name: "Setup - Fetch CIS Fedora L1 Server policy from registry"
+      ansible.builtin.command:
+        cmd: complyctl get
+        chdir: "{{ complyctl_workdir }}"
+      changed_when: true
+
+    - name: "Setup - Generate assessment plan and tailoring artifacts"
+      ansible.builtin.command:
+        cmd: "complyctl generate --policy-id {{ policy_id }}"
+        chdir: "{{ complyctl_workdir }}"
+      changed_when: true
+
+    - name: "Setup - Run doctor to verify workspace configuration"
+      ansible.builtin.command:
+        cmd: complyctl doctor
+        chdir: "{{ complyctl_workdir }}"
+      register: doctor_result
+      changed_when: false
+      failed_when: false
+
+    - name: "Setup - Display doctor output"
+      ansible.builtin.debug:
+        var: doctor_result.stdout_lines
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Prep - Create deliberate rule violations for the demo
+    # ──────────────────────────────────────────────────────────────────────
+
+    - name: "Prep - Remove firewalld to violate package_firewalld_installed"
       ansible.builtin.dnf:
         name:
           - firewalld
         state: absent
       become: true
 
-    - name: "Prep - Ensure '/etc/sudoers' is not compliant with 'sudo_custom_logfile rule'"
+    - name: "Prep - Remove sudoers logfile to violate sudo_custom_logfile"
       ansible.builtin.lineinfile:
         path: /etc/sudoers
-        line: 'Defaults logfile={{ var_sudo_logfile }}'
+        line: "Defaults logfile={{ var_sudo_logfile }}"
         validate: /usr/sbin/visudo -cf %s
         state: absent
       become: true
 
-    - name: "Prep - Ensure '/etc/login.defs' is not compliant with 'accounts_umask_etc_login_defs'"
+    - name: "Prep - Set UMASK 022 to violate accounts_umask_etc_login_defs"
       ansible.builtin.replace:
         path: /etc/login.defs
         regexp: ^(\s*)UMASK(\s+).*
         replace: '\g<1>UMASK\g<2>022'
       become: true
 
-    - name: "Prep - Ensure local directories to fetch generated files"
+    - name: "Prep - Create local directories to store fetched scan results"
       delegate_to: localhost
       ansible.builtin.file:
         path: "{{ item }}"
         state: directory
-        mode: '0755'
+        mode: "0755"
       loop: "{{ local_directories }}"
 
-    # Phase 1: Scanning out-of-box
-    - name: "Starting the Phase 1 - Scanning out-of-box"
+    # ──────────────────────────────────────────────────────────────────────
+    # Phase 1 - Scan the system with deliberate rule violations
+    # ──────────────────────────────────────────────────────────────────────
+
+    - name: "Phase 1 - Scan the system with known rule violations"
+      ansible.builtin.command:
+        cmd: "complyctl scan fedora-vm --format pretty"
+        chdir: "{{ complyctl_workdir }}"
+      changed_when: true
+      register: scan1_result
+      failed_when: false
+
+    - name: "Phase 1 - Display scan results"
       ansible.builtin.debug:
-        msg: "Phase 1 will execute the sequence of 'complyctl' commands out-of-box"
+        var: scan1_result.stdout_lines
 
-    - name: "Phase 1 - Execute 'generate' command to create assessment plan and policy"
-      ansible.builtin.command:
-        cmd: "~/bin/complyctl generate --policy-id {{ policy_id }}"
-        chdir: "{{ complyctl_workdir }}"
-      changed_when: true
+    - name: "Phase 1 - Fail if scan encountered an error"
+      ansible.builtin.fail:
+        msg: >-
+          complyctl scan failed with exit code {{ scan1_result.rc }}.
+          Exit code 0 = passed, 1 = non-compliant findings, >1 = error.
+      when: scan1_result.rc | default(0) | int > 1
 
-    - name: "Phase 1 - Execute 'scan' command with pretty format"
-      ansible.builtin.command:
-        cmd: "~/bin/complyctl scan --policy-id {{ policy_id }} --format pretty"
-        chdir: "{{ complyctl_workdir }}"
-      changed_when: true
-      become: true
-
-    - name: "Phase 1 - Run tree command to collect directory structure"
+    - name: "Phase 1 - Collect directory structure after scan"
       ansible.builtin.command:
         cmd: "{{ cmd_tree }}"
         chdir: "{{ complyctl_workdir }}"
       changed_when: false
       register: result_tree_scan1
 
-    - name: "Phase 1 - Fetch files from remote host to local machine"
-      ansible.builtin.shell:
-        cmd: "ls {{ item }}"
-        chdir: "{{ complyctl_workdir }}"
+    - name: "Phase 1 - Find scan result files"
+      ansible.builtin.find:
+        paths: "{{ complyctl_workdir }}"
+        patterns:
+          - "evaluation-log-*.yaml"
+          - "report-*.md"
+          - "results.xml"
+          - "arf.xml"
+        recurse: true
       register: phase1_files
-      loop: "{{ generated_files }}"
-      changed_when: false
-      failed_when: false
 
-    - name: "Phase 1 - Fetch matched files"
+    - name: "Phase 1 - Fetch scan results to local machine"
       ansible.builtin.fetch:
-        src: "{{ complyctl_workdir }}/{{ item }}"
+        src: "{{ item.path }}"
         dest: "{{ local_directories[0] }}/"
         flat: true
-      loop: "{{ phase1_files.results | map(attribute='stdout_lines') | flatten }}"
-      become: true
+      loop: "{{ phase1_files.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
 
-    # Phase 2: Fixing the failed rules and scanning again
-    - name: "Starting the Phase 2 - Fixing the failed rules and scanning again"
-      ansible.builtin.debug:
-        msg: "Phase 2 will fix the failed rules and scan the system again"
+    # ──────────────────────────────────────────────────────────────────────
+    # Phase 2 - Fix the broken rules and scan again
+    # ──────────────────────────────────────────────────────────────────────
 
-    - name: "Phase 2 - Fix package_firewalld_installed"
+    - name: "Phase 2 - Install firewalld to fix package_firewalld_installed"
       ansible.builtin.dnf:
         name:
           - firewalld
         state: present
       become: true
 
-    - name: "Phase 2 - Fix sudo_custom_logfile"
+    - name: "Phase 2 - Add sudoers logfile to fix sudo_custom_logfile"
       ansible.builtin.lineinfile:
         path: /etc/sudoers
-        line: 'Defaults logfile={{ var_sudo_logfile }}'
+        line: "Defaults logfile={{ var_sudo_logfile }}"
         validate: /usr/sbin/visudo -cf %s
       become: true
 
-    - name: "Phase 2 - Fix accounts_umask_etc_login_defs"
+    - name: "Phase 2 - Set UMASK 027 to fix accounts_umask_etc_login_defs"
       ansible.builtin.replace:
         path: /etc/login.defs
         regexp: ^(\s*)UMASK(\s+).*
         replace: '\g<1>UMASK\g<2>{{ var_accounts_user_umask }}'
       become: true
 
-    - name: "Phase 2 - Execute 'scan' command again after fixes"
+    - name: "Phase 2 - Scan the system after rule remediation"
       ansible.builtin.command:
-        cmd: "~/bin/complyctl scan --policy-id {{ policy_id }} --format pretty"
+        cmd: "complyctl scan fedora-vm --format pretty"
         chdir: "{{ complyctl_workdir }}"
       changed_when: true
-      become: true
+      register: scan2_result
+      failed_when: false
 
-    - name: "Phase 2 - Run tree command to collect directory structure"
+    - name: "Phase 2 - Display scan results"
+      ansible.builtin.debug:
+        var: scan2_result.stdout_lines
+
+    - name: "Phase 2 - Fail if scan encountered an error"
+      ansible.builtin.fail:
+        msg: >-
+          complyctl scan failed with exit code {{ scan2_result.rc }}.
+          Exit code 0 = passed, 1 = non-compliant findings, >1 = error.
+      when: scan2_result.rc | default(0) | int > 1
+
+    - name: "Phase 2 - Collect directory structure after scan"
       ansible.builtin.command:
         cmd: "{{ cmd_tree }}"
         chdir: "{{ complyctl_workdir }}"
       changed_when: false
       register: result_tree_scan2
 
-    - name: "Phase 2 - Fetch files from remote host to local machine"
-      ansible.builtin.shell:
-        cmd: "ls {{ item }}"
-        chdir: "{{ complyctl_workdir }}"
+    - name: "Phase 2 - Find scan result files"
+      ansible.builtin.find:
+        paths: "{{ complyctl_workdir }}"
+        patterns:
+          - "evaluation-log-*.yaml"
+          - "report-*.md"
+          - "results.xml"
+          - "arf.xml"
+        recurse: true
       register: phase2_files
-      loop: "{{ generated_files }}"
-      changed_when: false
-      failed_when: false
 
-    - name: "Phase 2 - Fetch matched files"
+    - name: "Phase 2 - Fetch scan results to local machine"
       ansible.builtin.fetch:
-        src: "{{ complyctl_workdir }}/{{ item }}"
+        src: "{{ item.path }}"
         dest: "{{ local_directories[1] }}/"
         flat: true
-      become: true
-      loop: "{{ phase2_files.results | map(attribute='stdout_lines') | flatten }}"
+      loop: "{{ phase2_files.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
 
-    - name: "Show output of tree commands to compare files before and after fixes"
+    # ──────────────────────────────────────────────────────────────────────
+    # Comparison - Display before-and-after results
+    # ──────────────────────────────────────────────────────────────────────
+
+    - name: "Compare directory structure from both scans"
       ansible.builtin.debug:
         var: "{{ item }}"
       loop:
         - result_tree_scan1.stdout_lines
         - result_tree_scan2.stdout_lines
 
-    - name: "Now explore the fetched files in your local directories"
+    - name: "Explore the fetched files in your local directories"
       ansible.builtin.debug:
         msg: "{{ item }}"
       loop: "{{ local_directories }}"
