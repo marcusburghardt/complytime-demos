@@ -167,7 +167,7 @@ and `failed_when: false` to capture the exit code. A separate task SHALL display
 exit code 0 or 1 is acceptable (1 indicates non-compliant findings were
 detected), while exit code >1 indicates a scan error and SHALL cause the playbook
 to fail. The scan SHALL target the `complytime-demos` GitHub repository. Scan
-results SHALL be fetched to a local directory `./downloads_ampel/`.
+results SHALL be fetched to a local directory `./downloads_complyctl_github/`.
 
 #### Scenario: Scan evaluates branch protection rules
 
@@ -182,7 +182,7 @@ results SHALL be fetched to a local directory `./downloads_ampel/`.
 
 - **GIVEN** the scan has completed
 - **WHEN** the fetch phase runs
-- **THEN** evaluation logs and reports are fetched to `./downloads_ampel/` on
+- **THEN** evaluation logs and reports are fetched to `./downloads_complyctl_github/` on
   the Ansible controller
 
 ### Requirement: Scan summary display
@@ -194,7 +194,7 @@ The playbook SHALL display the scan results to the user after fetching them.
 - **GIVEN** the scan and fetch phases have completed
 - **WHEN** the summary output runs
 - **THEN** the playbook displays the scan output via `ansible.builtin.debug` and
-  lists the local download directory path `./downloads_ampel/`
+  lists the local download directory path `./downloads_complyctl_github/`
 
 ### Requirement: Playbook idempotency
 

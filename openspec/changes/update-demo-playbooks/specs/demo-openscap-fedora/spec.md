@@ -120,7 +120,7 @@ privileges (`become: true`) after breaking the rules. The scan task SHALL use
 SHALL check the exit code: exit code 0 or 1 is acceptable (1 indicates
 non-compliant findings were detected), while exit code >1 indicates a scan error
 and SHALL cause the playbook to fail. The scan results SHALL be fetched to a
-local directory `./downloads_scan1/`.
+local directory `./downloads_complyctl_fedora_scan1/`.
 
 #### Scenario: Scan detects non-compliant rules
 
@@ -135,7 +135,7 @@ local directory `./downloads_scan1/`.
 
 - **GIVEN** the first scan has completed
 - **WHEN** the fetch phase runs
-- **THEN** evaluation logs and reports are fetched to `./downloads_scan1/` on
+- **THEN** evaluation logs and reports are fetched to `./downloads_complyctl_fedora_scan1/` on
   the Ansible controller
 
 ### Requirement: Rule remediation
@@ -161,7 +161,7 @@ All modifications to `/etc/sudoers` SHALL use
 The playbook SHALL run `complyctl scan fedora-vm --format pretty` again with
 elevated privileges after fixing the rules, using the same `register` +
 `failed_when: false` + exit code check pattern as the first scan. The scan
-results SHALL be fetched to a local directory `./downloads_scan2/`.
+results SHALL be fetched to a local directory `./downloads_complyctl_fedora_scan2/`.
 
 #### Scenario: Scan shows improvement after fixes
 
@@ -175,7 +175,7 @@ results SHALL be fetched to a local directory `./downloads_scan2/`.
 
 - **GIVEN** the second scan has completed
 - **WHEN** the fetch phase runs
-- **THEN** evaluation logs and reports are fetched to `./downloads_scan2/` on
+- **THEN** evaluation logs and reports are fetched to `./downloads_complyctl_fedora_scan2/` on
   the Ansible controller
 
 ### Requirement: Before-and-after comparison
@@ -189,7 +189,7 @@ both scans, and SHALL inform the user where fetched files are located.
 - **WHEN** the comparison output runs
 - **THEN** the playbook displays the `.complytime/` directory tree from both
   scans using `ansible.builtin.debug` tasks and lists the local download
-  directory paths `./downloads_scan1/` and `./downloads_scan2/`
+  directory paths `./downloads_complyctl_fedora_scan1/` and `./downloads_complyctl_fedora_scan2/`
 
 ### Requirement: Playbook idempotency
 

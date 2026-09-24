@@ -9,8 +9,8 @@
     # These directories are created locally to store files fetched from the VM.
     # They can be safely removed after the demo.
     local_directories:
-      - "./downloads_scan1"
-      - "./downloads_scan2"
+      - "./downloads_complyctl_fedora_scan1"
+      - "./downloads_complyctl_fedora_scan2"
 
     # This command is used multiple times to allow easier comparison between
     # testing phases.

@@ -22,7 +22,7 @@ show this workflow end-to-end.
   cycle. Uses bare `complyctl` (RPM-installed), correct policy ID
   (`cis-fedora-l1-server`), and the `profile: cis_server_l1` target variable
   required by the OpenSCAP provider.
-- **New `demo_ampel_github.yml`**: Self-contained Ampel demo that installs
+- **New `demo_complyctl_github.yml`**: Self-contained Ampel demo that installs
   packages via `dnf`, installs `snappy` and `ampel` CLI tools via `go install`
   (pinned versions with `-e` override), creates the workspace config inline,
   fetches the ampel-bp policy from quay.io, and scans the `complytime-demos`
@@ -55,7 +55,7 @@ _None (no capabilities removed)._
 ## Impact
 
 - **Files changed**: `base_ansible_env/demo_complyctl_fedora.yml`, `README.md`.
-- **Files created**: `base_ansible_env/demo_ampel_github.yml`.
+- **Files created**: `base_ansible_env/demo_complyctl_github.yml`.
 - **Dependencies**: Fedora packages `complyctl`, `complytime-providers-openscap`,
   `complytime-providers-ampel` (from Fedora repos). Go tools `snappy` and `ampel`
   (from `github.com/carabiner-dev`, pinned versions with `-e` override). OCI

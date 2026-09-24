@@ -223,7 +223,7 @@ complyctl scan --policy-id ampel-bp
 | `complyctl_workdir` | `~/complyctl-demo` | Working directory on the VM |
 | `policy_id` | `cis-fedora-l1-server` | Policy ID for CIS Fedora L1 Server |
 
-### demo_ampel_github.yml
+### demo_complyctl_github.yml
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -264,10 +264,10 @@ ansible-playbook demo_complyctl_fedora.yml
 6. Fixes all three rules and re-scans to show improvement
 7. Displays a before/after comparison of scan results
 
-Results are fetched to `./downloads_scan1/` (before fixes) and
-`./downloads_scan2/` (after fixes) on the host machine.
+Results are fetched to `./downloads_complyctl_fedora_scan1/` (before fixes) and
+`./downloads_complyctl_fedora_scan2/` (after fixes) on the host machine.
 
-### demo_ampel_github.yml
+### demo_complyctl_github.yml
 
 Self-contained Ampel branch-protection compliance demo. This playbook
 installs its own dependencies — no `populate_*` playbooks are needed.
@@ -288,7 +288,7 @@ rule queries.
 
 ```bash
 cd base_ansible_env/
-ansible-playbook demo_ampel_github.yml
+ansible-playbook demo_complyctl_github.yml
 ```
 
 **What it does**:
@@ -302,7 +302,7 @@ ansible-playbook demo_ampel_github.yml
 6. Scans branch protection rules and fetches results
 
 The token is handled securely via `no_log: true` — safe for recorded
-sessions. Results are fetched to `./downloads_ampel/` on the host
+sessions. Results are fetched to `./downloads_complyctl_github/` on the host
 machine.
 
 **Note**: Go tool versions are pinned by default. Override with

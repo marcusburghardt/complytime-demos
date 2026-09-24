@@ -150,6 +150,13 @@ tools) and ensure the demo always works regardless of VM state.
 the name avoids unnecessary churn and preserves continuity with prior
 documentation.
 
+> **Update**: The Ampel playbook was later renamed from `demo_ampel_github.yml`
+> to `demo_complyctl_github.yml` to follow the `demo_complyctl_<target>` naming
+> convention, aligning both demo playbooks under the `complyctl` prefix.
+> Download directories were also renamed to match:
+> `downloads_complyctl_fedora_scan1/`, `downloads_complyctl_fedora_scan2/`,
+> `downloads_complyctl_github/`.
+
 ## Risks / Trade-offs
 
 - **[Risk] Go tool version drift**: The playbook pins `snappy` and `ampel` to
