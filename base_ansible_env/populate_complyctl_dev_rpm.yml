@@ -319,7 +319,7 @@
           go install
           github.com/carabiner-dev/snappy@{{ snappy_version }}
       environment:
-        GOPATH: "{{ ansible_env.HOME }}/go"
+        GOPATH: "{{ ansible_facts['env']['HOME'] }}/go"
 
     - name: "Install ampel tool"
       ansible.builtin.command:
@@ -327,7 +327,7 @@
           go install
           github.com/carabiner-dev/ampel/cmd/ampel@{{ ampel_version }}
       environment:
-        GOPATH: "{{ ansible_env.HOME }}/go"
+        GOPATH: "{{ ansible_facts['env']['HOME'] }}/go"
 
     - name: "Ensure ~/bin directory exists"
       ansible.builtin.file:
@@ -352,7 +352,7 @@
 
     - name: "Ensure ~/go/bin and ~/bin are in PATH via .bashrc"
       ansible.builtin.lineinfile:
-        path: "{{ ansible_env.HOME }}/.bashrc"
+        path: "{{ ansible_facts['env']['HOME'] }}/.bashrc"
         line: 'export PATH="$HOME/go/bin:$HOME/bin:$PATH"'
         regexp: 'export PATH="\$HOME/go/bin'
         state: present

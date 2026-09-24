@@ -10,7 +10,7 @@
     snappy_version: "v0.2.6"
     ampel_version: "v1.3.6"
     # Go binary PATH for tasks that invoke Go-installed tools
-    go_bin_path: "{{ ansible_env.HOME }}/go/bin:{{ ansible_env.PATH }}"
+    go_bin_path: "{{ ansible_facts['env']['HOME'] }}/go/bin:{{ ansible_facts['env']['PATH'] }}"
 
   tasks:
     # Token validation runs on the controller before any remote tasks
@@ -48,7 +48,7 @@
 
     - name: "Setup - Ensure ~/go/bin is on PATH for interactive sessions"
       ansible.builtin.lineinfile:
-        path: "{{ ansible_env.HOME }}/.bashrc"
+        path: "{{ ansible_facts['env']['HOME'] }}/.bashrc"
         line: 'export PATH="$HOME/go/bin:$PATH"'
         regexp: 'go/bin'
         state: present
