@@ -216,6 +216,21 @@ complyctl scan --policy-id ampel-bp
 | `org_infra_ref` | `main` | Branch/tag of org-infra to pull policies from |
 | `org_infra_local_path` | *(commented out)* | Local org-infra clone path (overrides download) |
 
+### demo_complyctl_fedora.yml
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `complyctl_workdir` | `~/complyctl-demo` | Working directory on the VM |
+| `policy_id` | `cis-fedora-l1-server` | Policy ID for CIS Fedora L1 Server |
+
+### demo_ampel_github.yml
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `complyctl_workdir` | `~/complyctl-demo-ampel` | Working directory on the VM |
+| `snappy_version` | `v0.2.6` | Pinned snappy tool version |
+| `ampel_version` | `v1.3.6` | Pinned ampel tool version |
+
 ## Automated Demos
 
 As the [complytime projects](https://github.com/complytime/) evolve,
@@ -224,7 +239,74 @@ themselves serve as reference for manual exploration.
 
 ### demo_complyctl_fedora.yml
 
-> **Note**: This playbook is being updated for the current architecture.
+Self-contained OpenSCAP CIS L1 Server compliance demo. This playbook
+installs its own dependencies — no `populate_*` playbooks are needed.
+
+**Prerequisites**: `vagrant up` only (see [Step 1](#step-1-create-the-fedora-vm)).
+
+**Usage**:
+
+```bash
+cd base_ansible_env/
+ansible-playbook demo_complyctl_fedora.yml
+```
+
+**What it does**:
+
+1. Installs `complyctl` and the OpenSCAP provider via `dnf`
+2. Creates a workspace with an inline `complytime.yaml` configuration
+3. Fetches the CIS Fedora L1 Server policy from `quay.io`
+4. Deliberately breaks three rules to create non-compliance:
+   - Removes `firewalld` (`package_firewalld_installed`)
+   - Removes sudo logfile configuration (`sudo_custom_logfile`)
+   - Sets weak UMASK (`accounts_umask_etc_login_defs`)
+5. Scans the system and captures results showing failures
+6. Fixes all three rules and re-scans to show improvement
+7. Displays a before/after comparison of scan results
+
+Results are fetched to `./downloads_scan1/` (before fixes) and
+`./downloads_scan2/` (after fixes) on the host machine.
+
+### demo_ampel_github.yml
+
+Self-contained Ampel branch-protection compliance demo. This playbook
+installs its own dependencies — no `populate_*` playbooks are needed.
+
+**Prerequisites**: `vagrant up` (see [Step 1](#step-1-create-the-fedora-vm))
+and a `GITHUB_TOKEN` environment variable.
+
+**Token setup**:
+
+```bash
+export GITHUB_TOKEN=$(gh auth token)
+```
+
+The token requires `administration:read` scope for branch protection
+rule queries.
+
+**Usage**:
+
+```bash
+cd base_ansible_env/
+ansible-playbook demo_ampel_github.yml
+```
+
+**What it does**:
+
+1. Validates that `GITHUB_TOKEN` is set (fails with guidance if missing)
+2. Installs `complyctl` and the Ampel provider via `dnf`
+3. Installs `snappy` and `ampel` CLI tools via `go install`
+4. Creates a workspace with an inline `complytime.yaml` configuration
+   targeting the `complytime-demos` GitHub repository
+5. Fetches the `ampel-bp` policy from `quay.io`
+6. Scans branch protection rules and fetches results
+
+The token is handled securely via `no_log: true` — safe for recorded
+sessions. Results are fetched to `./downloads_ampel/` on the host
+machine.
+
+**Note**: Go tool versions are pinned by default. Override with
+`-e snappy_version=latest -e ampel_version=latest`.
 
 ### run_complybeacon_fedora.yml
 
