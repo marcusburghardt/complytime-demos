@@ -308,13 +308,3 @@ machine.
 **Note**: Go tool versions are pinned by default. Override with
 `-e snappy_version=latest -e ampel_version=latest`.
 
-### run_complybeacon_fedora.yml
-
-Deploys the complybeacon stack (Grafana, Loki, Compass, Collector) via
-podman-compose on the Fedora VM.
-
-```bash
-cd base_ansible_env/
-ansible-playbook run_complybeacon_fedora.yml \
-  -e "complybeacon_local_dir=/path/to/complybeacon"
-```
