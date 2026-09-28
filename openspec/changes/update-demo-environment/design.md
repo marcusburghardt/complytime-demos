@@ -34,8 +34,8 @@ See proposal.md for motivation. The key constraints shaping this design:
 - DNF installation from Fedora repos (packages not yet available for providers).
 - Complypack usage (content consumed directly via `complyctl get`).
 - OpenSCAP CIS policy integration (not yet on quay.io).
-- Updates to `demo_complyctl_fedora.yml`, `demo_complyctl_github.yml`,
-  `populate_complyctl_dev_content.yml`, or `run_complybeacon_fedora.yml`.
+- Updates to `demo_complyctl_fedora.yml`, `populate_complyctl_dev_content.yml`, or
+  `run_complybeacon_fedora.yml`.
 - Workspace-local provider discovery in complyctl (existing two-tier is sufficient).
 
 ## Decisions

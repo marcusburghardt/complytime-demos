@@ -67,5 +67,5 @@ _None (no existing specs to modify)._
 - **Dependencies**: Requires local clones of both `complytime/complyctl` and
   `complytime/complytime-providers` repositories.
 - **Not affected**: `populate_complyctl_dev_content.yml`,
-  `demo_complyctl_fedora.yml`, `demo_complyctl_github.yml`,
-  `run_complybeacon_fedora.yml` (deferred to follow-up work).
+  `demo_complyctl_fedora.yml`, `run_complybeacon_fedora.yml` (deferred to
+  follow-up work).
