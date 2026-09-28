@@ -1,0 +1,165 @@
+---
+- name: "Demonstrates complyctl with the Ampel provider scanning GitHub branch protection rules"
+  hosts: demo_vm
+  become: false
+  vars:
+    github_token: "{{ lookup('env', 'GITHUB_TOKEN') }}"
+    complyctl_workdir: "~/complyctl-demo-ampel"
+    # Pin third-party Go tool versions for reproducibility
+    # Override with: ansible-playbook -e snappy_version=latest -e ampel_version=latest
+    snappy_version: "v0.2.6"
+    ampel_version: "v1.3.6"
+    # Go binary PATH for tasks that invoke Go-installed tools
+    go_bin_path: "{{ ansible_facts['env']['HOME'] }}/go/bin:{{ ansible_facts['env']['PATH'] }}"
+
+  tasks:
+    # Token validation runs on the controller before any remote tasks
+    - name: "Validate GITHUB_TOKEN is set in the controller environment"
+      ansible.builtin.fail:
+        msg: >-
+          GITHUB_TOKEN is not set. Export it before running this playbook:
+          export GITHUB_TOKEN=$(gh auth token)
+          The token requires administration:read scope for branch protection queries.
+      when: github_token | length == 0
+      delegate_to: localhost
+
+    # Setup phase: install packages and Go tools
+    - name: "Setup - Install complyctl and ampel provider via dnf"
+      ansible.builtin.dnf:
+        name:
+          - complyctl
+          - complytime-providers-ampel
+        state: latest  # noqa: package-latest - spec requires latest to ensure up-to-date packages
+      become: true
+
+    - name: "Setup - Install snappy tool via go install"
+      ansible.builtin.command:
+        cmd: "go install github.com/carabiner-dev/snappy@{{ snappy_version }}"
+      changed_when: true
+      environment:
+        PATH: "{{ go_bin_path }}"
+
+    - name: "Setup - Install ampel CLI tool via go install"
+      ansible.builtin.command:
+        cmd: "go install github.com/carabiner-dev/ampel/cmd/ampel@{{ ampel_version }}"
+      changed_when: true
+      environment:
+        PATH: "{{ go_bin_path }}"
+
+    - name: "Setup - Ensure ~/go/bin is on PATH for interactive sessions"
+      ansible.builtin.lineinfile:
+        path: "{{ ansible_facts['env']['HOME'] }}/.bashrc"
+        line: 'export PATH="$HOME/go/bin:$PATH"'
+        regexp: 'go/bin'
+        state: present
+
+    # Workspace configuration
+    - name: "Config - Create workspace directory"
+      ansible.builtin.file:
+        path: "{{ complyctl_workdir }}/.complytime"
+        state: directory
+        mode: "0755"
+
+    - name: "Config - Write complytime.yaml configuration"
+      ansible.builtin.copy:
+        dest: "{{ complyctl_workdir }}/.complytime/complytime.yaml"
+        mode: "0644"
+        content: |
+          policies:
+            - url: quay.io/complytime/policies-ampel-branch-protection:latest
+              id: ampel-bp
+          complypacks:
+            - url: quay.io/complytime/complypack-ampel-branch-protection:latest
+              id: ampel-bp-pack
+          targets:
+            - id: complytime-demos
+              policies:
+                - ampel-bp
+              variables:
+                url: https://github.com/complytime/complytime-demos
+                specs: builtin:github/branch-rules.yaml
+
+    - name: "Config - Fetch ampel-bp policy from quay.io"
+      ansible.builtin.command:
+        cmd: "complyctl get"
+        chdir: "{{ complyctl_workdir }}"
+      changed_when: true
+      environment:
+        PATH: "{{ go_bin_path }}"
+
+    - name: "Config - Generate assessment artifacts for ampel-bp"
+      ansible.builtin.command:
+        cmd: "complyctl generate --policy-id ampel-bp"
+        chdir: "{{ complyctl_workdir }}"
+      changed_when: true
+      environment:
+        PATH: "{{ go_bin_path }}"
+
+    - name: "Config - Run complyctl doctor to verify configuration"
+      ansible.builtin.command:
+        cmd: "complyctl doctor"
+        chdir: "{{ complyctl_workdir }}"
+      register: doctor_result
+      changed_when: false
+      failed_when: false
+      environment:
+        PATH: "{{ go_bin_path }}"
+
+    - name: "Config - Display doctor output"
+      ansible.builtin.debug:
+        var: doctor_result.stdout_lines
+
+    # Scan phase: run branch protection scan with secure token handling
+    - name: "Scan - Execute complyctl scan against GitHub branch protection"
+      ansible.builtin.command:
+        cmd: "complyctl scan complytime-demos --format pretty"
+        chdir: "{{ complyctl_workdir }}"
+      environment:
+        GITHUB_TOKEN: "{{ github_token }}"
+        PATH: "{{ go_bin_path }}"
+      no_log: true
+      register: scan_result
+      changed_when: true
+      failed_when: false
+
+    - name: "Scan - Display scan results"
+      ansible.builtin.debug:
+        var: scan_result.stdout_lines
+
+    - name: "Scan - Fail if scan encountered an error (exit code > 1)"
+      ansible.builtin.fail:
+        msg: "complyctl scan failed with exit code {{ scan_result.rc | default('unknown') }}. Check the scan output above for details."
+      when: scan_result.rc | default(0) | int > 1
+
+    # Fetch phase: retrieve results to the controller
+    - name: "Fetch - Create local downloads directory"
+      delegate_to: localhost
+      ansible.builtin.file:
+        path: "./downloads_complyctl_github/"
+        state: directory
+        mode: "0755"
+
+    - name: "Fetch - Find scan result files"
+      ansible.builtin.find:
+        paths: "{{ complyctl_workdir }}"
+        patterns:
+          - "evaluation-log-*.yaml"
+          - "report-*.md"
+          - "results.xml"
+          - "arf.xml"
+        recurse: true
+      register: scan_files
+
+    - name: "Fetch - Retrieve scan results from remote host"
+      ansible.builtin.fetch:
+        src: "{{ item.path }}"
+        dest: "./downloads_complyctl_github/"
+        flat: true
+      loop: "{{ scan_files.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+
+    - name: "Fetch - Display download directory path"
+      ansible.builtin.debug:
+        msg: "Downloaded scan artifacts are available in: ./downloads_complyctl_github/"
+...
