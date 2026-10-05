@@ -39,15 +39,21 @@ toolchain.
   that evaluates the check-runs API response and passes only when all check
   runs have `status: completed` with `conclusion: success|skipped|neutral`.
 
-- **Gemara merge readiness catalog and policy**: A `ControlCatalog` with 6
-  controls across 2 groups (CI pipeline + source code protection) and a
-  `Policy` with 6 assessment plans using the ampel executor. Schema version
+- **Gemara merge readiness catalog, risk catalog, and policy**: A
+  `ControlCatalog` with 6 controls across 2 groups (CI pipeline + source
+  code protection), a `RiskCatalog` with 3 adverse outcomes mapped to
+  controls, and a `Policy` with 6 assessment plans, mitigated risk
+  mappings, and a shadow gate enforcement method. Schema version
   `gemara-version: "1.2.0"`.
 
-- **Shadow gate script** (`shadow-gate.sh`): Reads the Gemara EvaluationLog
-  produced by complyctl, checks the aggregate result, and emits a Gemara
-  EnforcementLog YAML with `disposition: Clear` or `disposition: Enforced`
-  and `executed-action: NONE` (shadow mode).
+- **Shadow gate script** (`shadow-gate.py`): Python script that parses
+  the Gemara EvaluationLog produced by complyctl and emits a Gemara
+  EnforcementLog YAML with a three-outcome disposition model:
+  - `Clear` (exit 0) — all requirements passed
+  - `Enforced` (exit 2) — one or more requirements failed
+  - `Undetermined` (exit 3) — missing evidence or needs review
+  Shadow mode only (`executed-action: NONE`). Includes per-requirement
+  findings in the EnforcementLog justification.
 
 - **5 branch protection ampel policies**: Copied from `org-infra` with
   semantic IDs (`require-pull-request`, `minimum-approvals`,
@@ -71,7 +77,7 @@ complyctl scan complytime-demos --policy-id merge-readiness
 Gemara EvaluationLog (6 controls unified)
     |
     v
-shadow-gate.sh -> Gemara EnforcementLog (disposition + executed_action: NONE)
+shadow-gate.py -> Gemara EnforcementLog (Clear / Enforced / Undetermined)
 ```
 
 ### Demo target
@@ -91,11 +97,14 @@ protection configured.
 - `demo-merge-readiness`: Defines a merge readiness assessment demo that
   evaluates CI pipeline health and branch protection rules as a unified
   Gemara EvaluationLog, then runs a shadow gate emitting a Gemara
-  EnforcementLog. Demonstrates:
+  EnforcementLog with a three-outcome disposition model. Demonstrates:
   - Custom snappy specs collecting evidence from new GitHub API endpoints
   - Custom ampel CEL policies evaluating CI check run results
-  - A Gemara policy bundle distributed via a local OCI registry
+  - A Gemara policy bundle (catalog + risk catalog + policy) distributed
+    via a local OCI registry
+  - Risk-to-control mappings and enforcement method declarations
   - The evaluator-to-gate chain: EvaluationLog -> EnforcementLog
+  - Three-outcome gate decisions: Clear / Enforced / Undetermined
 
 ### Modified Capabilities
 
@@ -118,10 +127,12 @@ _None._
   - `base_ansible_env/files/merge-readiness/ampel-policies/prevent-admin-bypass.json`
   - `base_ansible_env/files/merge-readiness/ampel-policies/require-code-owner-review.json`
   - `base_ansible_env/files/merge-readiness/gemara/merge-readiness-catalog.yaml`
+  - `base_ansible_env/files/merge-readiness/gemara/merge-readiness-risks.yaml`
   - `base_ansible_env/files/merge-readiness/gemara/merge-readiness-policy.yaml`
-  - `base_ansible_env/files/merge-readiness/shadow-gate.sh`
+  - `base_ansible_env/files/merge-readiness/shadow-gate.py`
 - **Dependencies**: Existing toolchain (complyctl, complytime-providers-ampel,
-  snappy, ampel, oras). New: local zot OCI registry via podman.
+  snappy, ampel, oras, python3-pyyaml). New: local zot OCI registry via
+  podman.
 - **Not affected**: Existing demo playbooks, development playbooks, templates,
   Vagrantfile.
 
@@ -161,7 +172,7 @@ This PoC validates the first two layers of the gated-merge architecture:
 |----------------------------|------------------------------------------------|
 | ComplyTime evaluates       | Yes — complyctl + ampel provider                |
 | Gemara EvaluationLog       | Yes — produced by complyctl scan                |
-| Shadow gate                | Yes — shadow-gate.sh emits EnforcementLog       |
+| Shadow gate                | Yes — shadow-gate.py with three-outcome model   |
 | Signed in-toto SVR         | Partial — ampel produces in-toto attestations   |
 | SLSA provenance            | Not in scope — narrate from org-infra workflows |
 | Post-merge AuditLog        | Not in scope                                    |
