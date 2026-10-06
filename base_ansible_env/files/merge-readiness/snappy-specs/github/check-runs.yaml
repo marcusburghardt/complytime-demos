@@ -6,3 +6,6 @@ url: git+https://github.com/${ORG}/${REPO}/@${BRANCH}
 type: http://github.com/complytime/complytime-demos/snappy-specs/github/check-runs.yaml
 endpoint: repos/${ORG}/${REPO}/commits/${BRANCH}/check-runs?per_page=100
 method: GET
+mask:
+  - total_count
+  - check_runs

@@ -23,7 +23,7 @@
   become: false
   vars:
     github_token: "{{ lookup('env', 'GITHUB_TOKEN') }}"
-    complyctl_workdir: "~/complyctl-demo-merge-readiness"
+    complyctl_workdir: "{{ ansible_facts['env']['HOME'] }}/complyctl-demo-merge-readiness"
     # Pin third-party Go tool versions for reproducibility
     # Override with: ansible-playbook -e snappy_version=latest -e ampel_version=latest
     snappy_version: "v0.2.6"
@@ -137,7 +137,7 @@
       loop:
         - "{{ complyctl_workdir }}/.complytime"
         - "{{ complyctl_workdir }}/snappy-specs/github"
-        - "{{ complyctl_workdir }}/ampel-policies"
+        - "{{ complyctl_workdir }}/.complytime/ampel/granular-policies"
         - "{{ complyctl_workdir }}/gemara"
         - "{{ complyctl_workdir }}/gate"
 
@@ -147,10 +147,10 @@
         dest: "{{ complyctl_workdir }}/snappy-specs/"
         mode: "0644"
 
-    - name: "Deploy - Copy ampel policy JSON files"
+    - name: "Deploy - Copy ampel granular policy files"
       ansible.builtin.copy:
         src: "files/merge-readiness/ampel-policies/"
-        dest: "{{ complyctl_workdir }}/ampel-policies/"
+        dest: "{{ complyctl_workdir }}/.complytime/ampel/granular-policies/"
         mode: "0644"
 
     - name: "Deploy - Copy Gemara catalog and policy"
@@ -202,9 +202,6 @@
             - url: http://{{ local_registry }}/policies-{{ policy_id }}:latest
               id: {{ policy_id }}
               skip_verify: true
-          complypacks:
-            - url: quay.io/complytime/complypack-ampel-branch-protection:latest
-              id: ampel-bp-pack
           targets:
             - id: {{ target_repo }}
               policies:
@@ -213,7 +210,6 @@
                 url: https://github.com/{{ target_org }}/{{ target_repo }}
                 specs: builtin:github/branch-rules.yaml,{{ complyctl_workdir }}/snappy-specs/github/check-runs.yaml
                 branches: {{ target_branch }}
-                ampel_policy_dir: {{ complyctl_workdir }}/ampel-policies
 
     - name: "Config - Fetch policy from local registry"
       ansible.builtin.command:

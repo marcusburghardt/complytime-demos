@@ -144,9 +144,12 @@ Copies all policy content to the VM:
 
 - **Snappy spec** (`check-runs.yaml`): tells snappy which GitHub API
   endpoint to query for CI check run status
-- **Ampel policies** (6 JSON files): CEL expressions that define what
-  "passing" means for each requirement (e.g., "all check runs must
-  complete with `success`, `skipped`, or `neutral`")
+- **Ampel granular policies** (6 JSON files deployed to
+  `.complytime/ampel/granular-policies/`): CEL expressions that define
+  what "passing" means for each requirement (e.g., "all check runs must
+  complete with `success`, `skipped`, or `neutral`"). These are placed
+  directly in the provider's expected directory so `complyctl generate`
+  merges them into the evaluation bundle.
 - **Gemara catalog** (`merge-readiness-catalog.yaml`): declares 6
   controls organized in 2 groups: CI pipeline health and source code
   protection
@@ -158,6 +161,24 @@ Copies all policy content to the VM:
   into a single policy document
 - **Shadow gate** (`shadow-gate.py`): reads the evaluation results and
   issues the final recommendation
+
+**How these files connect**: The catalog and risk catalog are
+independent -- they don't reference each other. The **policy** is the
+glue that joins them:
+
+1. It **imports** both by their `metadata.id` values (declared in
+   `imports.catalogs` and `imports.risks`).
+2. It **maps risks to controls** via `adherence.mitigated-risks`
+   (e.g., risk `R-CI` is mitigated by control `ci-pipeline-health`).
+3. It **maps controls to evaluation methods** via
+   `adherence.assessment-plans`, where each plan's `requirement-id`
+   matches an assessment-requirement ID defined inside a catalog
+   control (e.g., plan `ci-checks-pass` matches the requirement inside
+   control `ci-pipeline-health`).
+4. Each **ampel granular policy** file has an `id` that matches the
+   corresponding `requirement-id` in the policy's assessment plans.
+   During `complyctl generate`, these are matched and merged into a
+   single evaluation bundle.
 
 ### Phase 5: Publish the policy bundle
 
@@ -171,11 +192,17 @@ Writes the `complytime.yaml` configuration that tells complyctl:
 - Where to find the policy (the local registry)
 - Which repository to scan (`complytime/complytime-demos`)
 - Which branch to check (`main`)
-- Where to find the custom snappy specs and ampel policies
+- Which snappy specs to use (the built-in `branch-rules.yaml` and the
+  custom `check-runs.yaml`)
 
-Then runs `complyctl get` (fetches the policy), `complyctl generate`
-(prepares assessment artifacts), and `complyctl doctor` (verifies the
-configuration is valid).
+No complypack is configured. Instead, the ampel granular policy files
+were placed directly in `.complytime/ampel/granular-policies/` during
+Phase 4. The provider discovers them there automatically.
+
+Then runs `complyctl get` (fetches the Gemara policy from the local
+registry), `complyctl generate` (merges the granular policies into an
+evaluation bundle and writes the scan configuration), and
+`complyctl doctor` (verifies the workspace is valid).
 
 ### Phase 7: Run the scan
 
@@ -329,11 +356,14 @@ use. Run `sudo dnf install -y podman` on the VM if needed.
 
 ### Scan shows fewer than 6 requirements
 
-The CI check-runs requirement (`ci-checks-pass`) depends on the ampel
-provider correctly filtering attestation types. If it is missing from
-the results, the branch protection requirements (5 controls) still
-demonstrate the full pipeline. This is a known upstream limitation
-documented in the proposal.
+All 6 granular policy files must be present in
+`.complytime/ampel/granular-policies/` before `complyctl generate` runs.
+If the `ci-checks-pass` requirement is missing, verify that the
+playbook copied all 6 JSON files from `files/merge-readiness/ampel-policies/`
+to the granular-policies directory. Also confirm that `complytime.yaml`
+does **not** include a `complypacks:` section — the complypack takes
+exclusive priority over the granular-policies directory, and the
+upstream complypack does not include the `ci-checks-pass` policy.
 
 ### Token permission errors
 
