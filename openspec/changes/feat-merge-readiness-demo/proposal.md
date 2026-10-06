@@ -132,18 +132,29 @@ _None._
   - `base_ansible_env/files/merge-readiness/shadow-gate.py`
 - **Dependencies**: Existing toolchain (complyctl, complytime-providers-ampel,
   snappy, ampel, oras, python3-pyyaml). New: local zot OCI registry via
-  podman.
+  podman. The upstream complypack (`complypack-ampel-branch-protection`) is
+  **not used**; all 6 ampel granular policies are deployed directly to
+  `.complytime/ampel/granular-policies/` so the provider discovers them
+  without complypack exclusive-priority interference.
 - **Not affected**: Existing demo playbooks, development playbooks, templates,
   Vagrantfile.
 
 ## Known Risks
 
-- **Ampel cross-predicate-type filtering**: The ampel provider passes the full
-  merged policy bundle to each `ampel verify` invocation. If ampel does not
-  correctly skip tenets whose `predicates.types` do not match the incoming
-  attestation type, branch-protection policies will generate spurious failures
-  when evaluated against check-runs attestations. Mitigation: test early; fall
-  back to separate scan passes per evidence type if needed.
+- **Ampel cross-predicate-type filtering** _(resolved)_: The ampel provider
+  now filters the merged policy bundle per attestation type before calling
+  `ampel verify`. Each invocation receives only the policies whose
+  `predicates.types` match the attestation's `predicateType`. Filtered bundles
+  are written to a temporary file under `$XDG_CACHE_HOME/complytime/ampel/`
+  and cleaned up after use. This prevents ampel from reporting "required
+  attestations missing" for policies that expect a different spec type.
+
+- **Snappy spec requires `mask` for object responses** _(resolved)_: Custom
+  snappy specs that query GitHub API endpoints returning JSON objects (not
+  arrays) must include a `mask` field listing the response fields to extract.
+  The `check-runs.yaml` spec was updated with `mask: [total_count,
+  check_runs]` to match the format used by the GitLab specs
+  (`branch-protection.yaml`, `project-approvals.yaml`).
 
 - **Snappy does not paginate**: GitHub API responses are limited to 100 results
   per page (`?per_page=100` in the spec). Repositories with more than 100
