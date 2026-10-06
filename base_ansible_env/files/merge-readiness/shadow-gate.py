@@ -25,7 +25,6 @@ Requires: python3, PyYAML (python3-pyyaml)
 
 from __future__ import annotations
 
-import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
@@ -40,9 +39,13 @@ PASSING_RESULTS = frozenset({"Passed", "Not Applicable"})
 FAILING_RESULTS = frozenset({"Failed"})
 
 # Result values that indicate uncertainty (escalation required).
-UNCERTAIN_RESULTS = frozenset({
-    "Needs Review", "Unknown", "Not Run",
-})
+UNCERTAIN_RESULTS = frozenset(
+    {
+        "Needs Review",
+        "Unknown",
+        "Not Run",
+    }
+)
 
 # Exit codes aligned with gemara-demo conventions.
 EXIT_CLEAR = 0
@@ -55,20 +58,17 @@ EXIT_UNDETERMINED = 3
 # EvaluationLog parsing
 # -------------------------------------------------------------------
 
+
 def load_evaluation_log(path: Path) -> dict[str, Any]:
     """Load and validate the basic structure of a YAML EvaluationLog."""
     with open(path, encoding="utf-8") as fh:
         data = yaml.safe_load(fh)
 
     if not isinstance(data, dict):
-        raise ValueError(
-            f"EvaluationLog must be a YAML mapping, got {type(data).__name__}"
-        )
+        raise ValueError(f"EvaluationLog must be a YAML mapping, got {type(data).__name__}")
 
     if "result" not in data:
-        raise ValueError(
-            "EvaluationLog is missing the top-level 'result' field"
-        )
+        raise ValueError("EvaluationLog is missing the top-level 'result' field")
 
     return data
 
@@ -105,27 +105,29 @@ def extract_requirement_results(
                     if not isinstance(log_entry, dict):
                         continue
                     req_ref = log_entry.get("requirement", {})
-                    req_id = req_ref.get(
-                        "entry-id", control_name
-                    ) if isinstance(req_ref, dict) else control_name
-                    results.append({
-                        "requirement_id": req_id,
-                        "result": str(log_entry.get(
-                            "result", control_result
-                        )),
-                        "control": control_entry or control_name,
-                        "description": str(
-                            log_entry.get("description", "")
-                        ),
-                    })
+                    req_id = (
+                        req_ref.get("entry-id", control_name)
+                        if isinstance(req_ref, dict)
+                        else control_name
+                    )
+                    results.append(
+                        {
+                            "requirement_id": req_id,
+                            "result": str(log_entry.get("result", control_result)),
+                            "control": control_entry or control_name,
+                            "description": str(log_entry.get("description", "")),
+                        }
+                    )
             else:
                 # No assessment-logs; use the control-level result.
-                results.append({
-                    "requirement_id": control_name,
-                    "result": control_result,
-                    "control": control_entry or control_name,
-                    "description": "",
-                })
+                results.append(
+                    {
+                        "requirement_id": control_name,
+                        "result": control_result,
+                        "control": control_entry or control_name,
+                        "description": "",
+                    }
+                )
         return results
 
     # Fallback: flat list with requirement-id fields (complyctl may
@@ -135,14 +137,14 @@ def extract_requirement_results(
         for entry in req_list:
             if not isinstance(entry, dict):
                 continue
-            results.append({
-                "requirement_id": str(
-                    entry.get("requirement-id", "unknown")
-                ),
-                "result": str(entry.get("result", "Unknown")),
-                "control": str(entry.get("control-id", "")),
-                "description": str(entry.get("description", "")),
-            })
+            results.append(
+                {
+                    "requirement_id": str(entry.get("requirement-id", "unknown")),
+                    "result": str(entry.get("result", "Unknown")),
+                    "control": str(entry.get("control-id", "")),
+                    "description": str(entry.get("description", "")),
+                }
+            )
         return results
 
     return results
@@ -151,6 +153,7 @@ def extract_requirement_results(
 # -------------------------------------------------------------------
 # Disposition logic
 # -------------------------------------------------------------------
+
 
 def determine_disposition(
     aggregate_result: str,
@@ -163,29 +166,18 @@ def determine_disposition(
     if not requirement_results:
         return (
             "Undetermined",
-            "No requirement results found in the EvaluationLog. "
-            "Cannot determine merge readiness.",
+            "No requirement results found in the EvaluationLog. Cannot determine merge readiness.",
             EXIT_UNDETERMINED,
         )
 
     total = len(requirement_results)
-    passed = sum(
-        1 for r in requirement_results
-        if r["result"] in PASSING_RESULTS
-    )
-    failed = sum(
-        1 for r in requirement_results
-        if r["result"] in FAILING_RESULTS
-    )
-    uncertain = sum(
-        1 for r in requirement_results
-        if r["result"] in UNCERTAIN_RESULTS
-    )
+    passed = sum(1 for r in requirement_results if r["result"] in PASSING_RESULTS)
+    failed = sum(1 for r in requirement_results if r["result"] in FAILING_RESULTS)
+    uncertain = sum(1 for r in requirement_results if r["result"] in UNCERTAIN_RESULTS)
 
     if uncertain > 0:
         uncertain_ids = [
-            r["requirement_id"] for r in requirement_results
-            if r["result"] in UNCERTAIN_RESULTS
+            r["requirement_id"] for r in requirement_results if r["result"] in UNCERTAIN_RESULTS
         ]
         return (
             "Undetermined",
@@ -197,8 +189,7 @@ def determine_disposition(
 
     if failed > 0:
         failed_ids = [
-            r["requirement_id"] for r in requirement_results
-            if r["result"] in FAILING_RESULTS
+            r["requirement_id"] for r in requirement_results if r["result"] in FAILING_RESULTS
         ]
         return (
             "Enforced",
@@ -217,14 +208,13 @@ def determine_disposition(
 
     # Defensive: results with unexpected values.
     unexpected = [
-        r for r in requirement_results
+        r
+        for r in requirement_results
         if r["result"] not in PASSING_RESULTS
         and r["result"] not in FAILING_RESULTS
         and r["result"] not in UNCERTAIN_RESULTS
     ]
-    unexpected_detail = ", ".join(
-        f"{r['requirement_id']}={r['result']}" for r in unexpected
-    )
+    unexpected_detail = ", ".join(f"{r['requirement_id']}={r['result']}" for r in unexpected)
     return (
         "Undetermined",
         f"Unexpected result values encountered: {unexpected_detail}. "
@@ -237,6 +227,7 @@ def determine_disposition(
 # EnforcementLog generation
 # -------------------------------------------------------------------
 
+
 def build_enforcement_log(
     disposition: str,
     rationale: str,
@@ -246,9 +237,7 @@ def build_enforcement_log(
     timestamp: str,
 ) -> dict[str, Any]:
     """Build a Gemara EnforcementLog dict."""
-    iso_now = datetime.now(timezone.utc).strftime(
-        "%Y-%m-%dT%H:%M:%SZ"
-    )
+    iso_now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     findings = []
     for req in requirement_results:
@@ -266,9 +255,7 @@ def build_enforcement_log(
     target_name = "unknown"
     target_env = "unknown"
     if isinstance(target_data, dict):
-        target_id = target_data.get(
-            "id", target_data.get("uri", "unknown")
-        )
+        target_id = target_data.get("id", target_data.get("uri", "unknown"))
         target_name = target_data.get("name", target_id)
         target_env = target_data.get("environment", "unknown")
 
@@ -330,6 +317,7 @@ def build_enforcement_log(
 # Output
 # -------------------------------------------------------------------
 
+
 def write_enforcement_log(
     enforcement_log: dict[str, Any],
     output_dir: Path,
@@ -343,19 +331,12 @@ def write_enforcement_log(
 
     def represent_str(dumper: yaml.SafeDumper, data: str) -> Any:
         if "\n" in data:
-            return dumper.represent_scalar(
-                "tag:yaml.org,2002:str", data, style="|"
-            )
-        return dumper.represent_scalar(
-            "tag:yaml.org,2002:str", data
-        )
+            return dumper.represent_scalar("tag:yaml.org,2002:str", data, style="|")
+        return dumper.represent_scalar("tag:yaml.org,2002:str", data)
 
     BlockDumper.add_representer(str, represent_str)
 
-    source_name = (
-        enforcement_log["actions"][0]
-        ["justification"]["evidence"][0]["source"]
-    )
+    source_name = enforcement_log["actions"][0]["justification"]["evidence"][0]["source"]
     header = (
         "# Gemara EnforcementLog - Shadow Gate Output\n"
         f"# Source: {source_name}\n"
@@ -371,9 +352,7 @@ def write_enforcement_log(
         width=99,
     )
 
-    output_file.write_text(
-        header + yaml_content, encoding="utf-8"
-    )
+    output_file.write_text(header + yaml_content, encoding="utf-8")
     return output_file
 
 
@@ -392,19 +371,20 @@ def print_summary(
     print(f"  Rationale   : {rationale}")
     print(f"  Source       : {eval_log_name}")
     print(f"  Output      : {output_file}")
-    print(f"  Mode        : Shadow (executed_action: NONE)")
+    print("  Mode        : Shadow (executed_action: NONE)")
     print()
 
     if requirement_results:
         print("  Requirement Results:")
         for req in requirement_results:
-            status_marker = "PASS" if req["result"] in PASSING_RESULTS \
-                else "FAIL" if req["result"] in FAILING_RESULTS \
+            status_marker = (
+                "PASS"
+                if req["result"] in PASSING_RESULTS
+                else "FAIL"
+                if req["result"] in FAILING_RESULTS
                 else "????"
-            print(
-                f"    [{status_marker}] {req['requirement_id']}"
-                f" = {req['result']}"
             )
+            print(f"    [{status_marker}] {req['requirement_id']} = {req['result']}")
         print()
 
     print("---")
@@ -414,12 +394,12 @@ def print_summary(
 # Main
 # -------------------------------------------------------------------
 
+
 def main() -> int:
     """Run the shadow gate and return the exit code."""
     if len(sys.argv) < 2:
         print(
-            f"Usage: {sys.argv[0]} <evaluation-log.yaml> "
-            f"[output-dir]",
+            f"Usage: {sys.argv[0]} <evaluation-log.yaml> [output-dir]",
             file=sys.stderr,
         )
         return EXIT_ERROR
@@ -450,7 +430,8 @@ def main() -> int:
     target_data = data.get("target", {})
 
     disposition, rationale, exit_code = determine_disposition(
-        aggregate_result, requirement_results,
+        aggregate_result,
+        requirement_results,
     )
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
@@ -466,12 +447,17 @@ def main() -> int:
     )
 
     output_file = write_enforcement_log(
-        enforcement_log, output_dir, timestamp,
+        enforcement_log,
+        output_dir,
+        timestamp,
     )
 
     print_summary(
-        disposition, rationale, eval_log_name,
-        output_file, requirement_results,
+        disposition,
+        rationale,
+        eval_log_name,
+        output_file,
+        requirement_results,
     )
 
     return exit_code
