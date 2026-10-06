@@ -24,13 +24,9 @@
   vars:
     github_token: "{{ lookup('env', 'GITHUB_TOKEN') }}"
     complyctl_workdir: "{{ ansible_facts['env']['HOME'] }}/complyctl-demo-merge-readiness"
-    # Pin third-party Go tool versions for reproducibility
-    # Override with: ansible-playbook -e snappy_version=latest -e ampel_version=latest
-    snappy_version: "v0.2.6"
-    ampel_version: "v1.3.6"
     oras_version: "1.2.2"
-    # Go binary PATH for tasks that invoke Go-installed tools
-    go_bin_path: "{{ ansible_facts['env']['HOME'] }}/go/bin:{{ ansible_facts['env']['PATH'] }}"
+    # PATH for tasks that invoke complyctl (~/bin), snappy/ampel (~/go/bin)
+    go_bin_path: "{{ ansible_facts['env']['HOME'] }}/bin:{{ ansible_facts['env']['HOME'] }}/go/bin:{{ ansible_facts['env']['PATH'] }}"
     # Local OCI registry for the custom Gemara policy bundle
     local_registry: "localhost:5000"
     policy_id: "merge-readiness"
@@ -54,37 +50,17 @@
       delegate_to: localhost
 
     # ----------------------------------------------------------------
-    # Phase 2: Install tools
+    # Phase 2: Install demo-specific dependencies
     # ----------------------------------------------------------------
-    - name: "Setup - Install complyctl, ampel provider, and Python dependencies via dnf"
+    # complyctl, providers, snappy, and ampel are expected to be
+    # pre-installed (e.g. via populate_complyctl_dev_binaries.yml).
+
+    - name: "Setup - Install Python dependencies for shadow gate"
       ansible.builtin.dnf:
         name:
-          - complyctl
-          - complytime-providers-ampel
           - python3-pyyaml
         state: latest  # noqa: package-latest - demo requires latest packages
       become: true
-
-    - name: "Setup - Install snappy tool via go install"
-      ansible.builtin.command:
-        cmd: "go install github.com/carabiner-dev/snappy@{{ snappy_version }}"
-      changed_when: true
-      environment:
-        PATH: "{{ go_bin_path }}"
-
-    - name: "Setup - Install ampel CLI tool via go install"
-      ansible.builtin.command:
-        cmd: "go install github.com/carabiner-dev/ampel/cmd/ampel@{{ ampel_version }}"
-      changed_when: true
-      environment:
-        PATH: "{{ go_bin_path }}"
-
-    - name: "Setup - Ensure ~/go/bin is on PATH for interactive sessions"
-      ansible.builtin.lineinfile:
-        path: "{{ ansible_facts['env']['HOME'] }}/.bashrc"
-        line: 'export PATH="$HOME/go/bin:$PATH"'
-        regexp: 'go/bin'
-        state: present
 
     - name: "Setup - Install oras CLI for local OCI registry operations"
       become: true
