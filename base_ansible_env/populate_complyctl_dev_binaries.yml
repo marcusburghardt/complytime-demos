@@ -15,7 +15,7 @@
     # Pin third-party tool versions to avoid breakage from upstream Go version bumps
     # Keep in sync with populate_complyctl_dev_rpm.yml
     snappy_version: "v0.2.6"
-    ampel_version: "v1.3.6"
+    ampel_version: "v1.4.2"
     conftest_version: "0.69.0"
 
   tasks:
@@ -27,6 +27,7 @@
           - complytime-providers-openscap
           - complytime-providers-ampel
           - complytime-providers-opa
+          - golang-oras
         state: absent
       become: true
 
@@ -92,7 +93,7 @@
 
     - name: "Install ampel tool"
       ansible.builtin.command:
-        cmd: "go install github.com/carabiner-dev/ampel/cmd/ampel@{{ ampel_version }}"
+        cmd: "go install github.com/policylabs/ampel/cmd/ampel@{{ ampel_version }}"
       environment:
         GOPATH: "{{ ansible_facts['env']['HOME'] }}/go"
 

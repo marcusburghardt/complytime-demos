@@ -1,0 +1,319 @@
+---
+# Demonstrates complyctl offline provisioning via --from-oci-layout.
+#
+# This playbook mirrors the realistic air-gapped workflow a sysadmin would
+# follow: pull OCI artifacts on a connected workstation, transfer the layout
+# directory to the target system, and import locally without registry access.
+#
+# Prerequisites:
+#   - Fedora VM provisioned (vagrant up) and reachable via ansible_inventory
+#   - populate_complyctl_dev_binaries.yml already run (complyctl from PR branch
+#     + providers + snappy/ampel/conftest)
+#   - oras CLI installed on the controller (dnf install golang-oras)
+#   - GITHUB_TOKEN exported for the Ampel scan phase
+#
+# Usage:
+#   export GITHUB_TOKEN=$(gh auth token)
+#   ansible-playbook demo_complyctl_local_oci_import.yml
+
+- name: "Demonstrates complyctl offline import from a local OCI image layout"
+  hosts: demo_vm
+  become: false
+  vars:
+    github_token: "{{ lookup('env', 'GITHUB_TOKEN') }}"
+    complyctl_workdir: "~/complyctl-demo-offline"
+
+    # OCI layout directory on the controller (simulates the connected workstation)
+    local_layout_dir: "/tmp/complytime-oci-layout"
+    # OCI layout directory on the VM (simulates the air-gapped system)
+    remote_layout_dir: "~/oci-layout"
+
+    # Source OCI references — pulled on the connected workstation
+    policy_oci_ref: "quay.io/complytime/policies-ampel-branch-protection:latest"
+    complypack_oci_ref: "quay.io/complytime/complypack-ampel-branch-protection:latest"
+    ampel_policy_id: "ampel-bp"
+
+    # Ampel scan target
+    ampel_target_url: "https://github.com/complytime/complytime-demos"
+    ampel_target_id: "complytime-demos"
+
+    # Local directory to fetch scan results into
+    local_results_dir: "./downloads_complyctl_offline"
+
+    # Go binary PATH for tasks that invoke Go-installed tools
+    go_bin_path: "{{ ansible_facts['env']['HOME'] }}/go/bin:{{ ansible_facts['env']['PATH'] }}"
+
+  tasks:
+    # ──────────────────────────────────────────────────────────────────────
+    # Phase 0 — Prepare OCI layout on the connected workstation (controller)
+    # ──────────────────────────────────────────────────────────────────────
+
+    - name: "Prereq - Validate GITHUB_TOKEN is set in the controller environment"
+      ansible.builtin.fail:
+        msg: >-
+          GITHUB_TOKEN is not set. Export it before running this playbook:
+          export GITHUB_TOKEN=$(gh auth token)
+          The token requires administration:read scope for branch protection queries.
+      when: github_token | length == 0
+      delegate_to: localhost
+
+    - name: "Prereq - Verify oras CLI is available on the controller"
+      ansible.builtin.command:
+        cmd: "oras version"
+      delegate_to: localhost
+      changed_when: false
+      register: oras_version_result
+      failed_when: oras_version_result.rc != 0
+
+    - name: "Prereq - Display oras version"
+      ansible.builtin.debug:
+        msg: "oras {{ oras_version_result.stdout_lines | first | default('unknown') }}"
+
+    - name: "Prepare - Create clean OCI layout directory on controller"
+      ansible.builtin.file:
+        path: "{{ local_layout_dir }}"
+        state: "{{ item }}"
+        mode: "0750"
+      loop:
+        - absent
+        - directory
+      delegate_to: localhost
+
+    - name: "Prepare - Pull policy artifact into OCI layout"
+      ansible.builtin.command:
+        cmd: "oras cp --to-oci-layout {{ policy_oci_ref }} {{ local_layout_dir }}:policy"
+      delegate_to: localhost
+      changed_when: true
+
+    - name: "Prepare - Pull complypack artifact into OCI layout"
+      ansible.builtin.command:
+        cmd: "oras cp --to-oci-layout {{ complypack_oci_ref }} {{ local_layout_dir }}:complypack"
+      delegate_to: localhost
+      changed_when: true
+
+    # Read digests from index.json — the same way a sysadmin would inspect
+    # the layout after pulling artifacts with oras.
+    - name: "Prepare - Read policy digest from OCI layout index"
+      ansible.builtin.command:
+        cmd: >-
+          jq -r '.manifests[] |
+            select(.annotations["org.opencontainers.image.ref.name"]=="policy") |
+            .digest' {{ local_layout_dir }}/index.json
+      delegate_to: localhost
+      changed_when: false
+      register: policy_digest_result
+
+    - name: "Prepare - Read complypack digest from OCI layout index"
+      ansible.builtin.command:
+        cmd: >-
+          jq -r '.manifests[] |
+            select(.annotations["org.opencontainers.image.ref.name"]=="complypack") |
+            .digest' {{ local_layout_dir }}/index.json
+      delegate_to: localhost
+      changed_when: false
+      register: complypack_digest_result
+
+    - name: "Prepare - Store extracted digests as facts"
+      ansible.builtin.set_fact:
+        policy_digest: "{{ policy_digest_result.stdout | trim }}"
+        complypack_digest: "{{ complypack_digest_result.stdout | trim }}"
+
+    - name: "Prepare - Display extracted digests"
+      ansible.builtin.debug:
+        msg:
+          - "Policy digest:    {{ policy_digest }}"
+          - "Complypack digest: {{ complypack_digest }}"
+
+    - name: "Prepare - Validate digests were extracted successfully"
+      ansible.builtin.assert:
+        that:
+          - policy_digest is match('^sha256:[a-f0-9]{64}$')
+          - complypack_digest is match('^sha256:[a-f0-9]{64}$')
+        fail_msg: >-
+          Failed to extract valid digests from the OCI layout index.
+          Check that oras copied the artifacts correctly.
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Phase 1 — Transfer OCI layout and configure workspace on the VM
+    # ──────────────────────────────────────────────────────────────────────
+
+    - name: "Transfer - Copy OCI layout directory to the VM"
+      ansible.posix.synchronize:
+        src: "{{ local_layout_dir }}/"
+        dest: "{{ remote_layout_dir }}/"
+        archive: true
+        delete: true
+
+    - name: "Transfer - Verify OCI layout marker exists on the VM"
+      ansible.builtin.stat:
+        path: "{{ remote_layout_dir }}/oci-layout"
+      register: oci_layout_marker
+
+    - name: "Transfer - Fail if OCI layout is incomplete"
+      ansible.builtin.fail:
+        msg: "OCI layout at {{ remote_layout_dir }} is missing the oci-layout marker file."
+      when: not oci_layout_marker.stat.exists
+
+    - name: "Config - Create workspace directory"
+      ansible.builtin.file:
+        path: "{{ complyctl_workdir }}/.complytime"
+        state: directory
+        mode: "0750"
+
+    # The complytime.yaml uses digest-pinned URLs. The registry hostname
+    # (quay.io) identifies the cached entry but complyctl does not contact
+    # it during local import — artifacts are selected purely by digest.
+    - name: "Config - Write complytime.yaml with digest-pinned URLs"
+      ansible.builtin.copy:
+        dest: "{{ complyctl_workdir }}/.complytime/complytime.yaml"
+        mode: "0640"
+        content: |
+          policies:
+            - url: quay.io/complytime/policies-ampel-branch-protection@{{ policy_digest }}
+              id: {{ ampel_policy_id }}
+          complypacks:
+            - url: quay.io/complytime/complypack-ampel-branch-protection@{{ complypack_digest }}
+              id: {{ ampel_policy_id }}-pack
+          targets:
+            - id: {{ ampel_target_id }}
+              policies:
+                - {{ ampel_policy_id }}
+              variables:
+                url: {{ ampel_target_url }}
+                specs: builtin:github/branch-rules.yaml
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Phase 2 — Import from local OCI layout (offline provisioning)
+    # ──────────────────────────────────────────────────────────────────────
+
+    - name: "Import - Run complyctl get --from-oci-layout"
+      ansible.builtin.command:
+        cmd: "complyctl get --from-oci-layout {{ remote_layout_dir }}"
+        chdir: "{{ complyctl_workdir }}"
+      changed_when: true
+      register: import_result
+      environment:
+        PATH: "{{ go_bin_path }}"
+
+    - name: "Import - Display import output"
+      ansible.builtin.debug:
+        var: import_result.stderr_lines
+
+    - name: "Import - Run complyctl list"
+      ansible.builtin.command:
+        cmd: "complyctl list"
+        chdir: "{{ complyctl_workdir }}"
+      changed_when: false
+      register: list_result
+      environment:
+        PATH: "{{ go_bin_path }}"
+
+    - name: "Import - Display list output"
+      ansible.builtin.debug:
+        var: list_result.stdout_lines
+
+    - name: "Import - Validate policy is listed and marked unverified"
+      ansible.builtin.assert:
+        that:
+          - "ampel_policy_id in list_result.stdout"
+          - "'No' in list_result.stdout"
+        fail_msg: >-
+          Expected '{{ ampel_policy_id }}' to appear in complyctl list output
+          with VERIFIED=No. Got: {{ list_result.stdout }}
+
+    - name: "Import - Run complyctl doctor"
+      ansible.builtin.command:
+        cmd: "complyctl doctor"
+        chdir: "{{ complyctl_workdir }}"
+      register: doctor_result
+      changed_when: false
+      failed_when: false
+      environment:
+        PATH: "{{ go_bin_path }}"
+
+    - name: "Import - Display doctor output"
+      ansible.builtin.debug:
+        var: doctor_result.stdout_lines
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Phase 3 — Scan (proves end-to-end offline import works)
+    # ──────────────────────────────────────────────────────────────────────
+
+    - name: "Scan - Generate assessment artifacts"
+      ansible.builtin.command:
+        cmd: "complyctl generate --policy-id {{ ampel_policy_id }}"
+        chdir: "{{ complyctl_workdir }}"
+      changed_when: true
+      environment:
+        PATH: "{{ go_bin_path }}"
+
+    - name: "Scan - Execute complyctl scan against GitHub branch protection"
+      ansible.builtin.command:
+        cmd: "complyctl scan {{ ampel_target_id }} --format pretty"
+        chdir: "{{ complyctl_workdir }}"
+      environment:
+        GITHUB_TOKEN: "{{ github_token }}"
+        PATH: "{{ go_bin_path }}"
+      no_log: true
+      register: scan_result
+      changed_when: true
+      failed_when: false
+
+    - name: "Scan - Display scan results"
+      ansible.builtin.debug:
+        var: scan_result.stderr_lines
+
+    - name: "Scan - Fail if scan encountered an error (exit code > 1)"
+      ansible.builtin.fail:
+        msg: >-
+          complyctl scan failed with exit code {{ scan_result.rc | default('unknown') }}.
+          Exit code 0 = passed, 1 = non-compliant findings, >1 = error.
+      when: scan_result.rc | default(0) | int > 1
+
+    - name: "Fetch - Create local downloads directory"
+      delegate_to: localhost
+      ansible.builtin.file:
+        path: "{{ local_results_dir }}"
+        state: directory
+        mode: "0750"
+
+    - name: "Fetch - Find scan result files"
+      ansible.builtin.find:
+        paths: "{{ complyctl_workdir }}"
+        patterns:
+          - "evaluation-log-*.yaml"
+          - "evaluation-log-*.json"
+          - "report-*.md"
+        recurse: true
+      register: scan_files
+
+    - name: "Fetch - Retrieve scan results from remote host"
+      ansible.builtin.fetch:
+        src: "{{ item.path }}"
+        dest: "{{ local_results_dir }}/"
+        flat: true
+      loop: "{{ scan_files.files }}"
+      loop_control:
+        label: "{{ item.path | basename }}"
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Phase 4 — Incremental behavior (re-import unchanged entries)
+    # ──────────────────────────────────────────────────────────────────────
+
+    - name: "Incremental - Re-run import with unchanged OCI layout"
+      ansible.builtin.command:
+        cmd: "complyctl get --from-oci-layout {{ remote_layout_dir }}"
+        chdir: "{{ complyctl_workdir }}"
+      register: reimport_result
+      changed_when: true
+      environment:
+        PATH: "{{ go_bin_path }}"
+
+    - name: "Incremental - Display re-import output"
+      ansible.builtin.debug:
+        var: reimport_result.stderr_lines
+
+    - name: "Summary - Display download directory path"
+      ansible.builtin.debug:
+        msg: "Downloaded scan artifacts are available in: {{ local_results_dir }}/"
+...
