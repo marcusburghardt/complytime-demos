@@ -154,7 +154,16 @@
         msg: "OCI layout at {{ remote_layout_dir }} is missing the oci-layout marker file."
       when: not oci_layout_marker.stat.exists
 
-    - name: "Config - Create workspace directory"
+    - name: "Config - Create clean workspace directory"
+      ansible.builtin.file:
+        path: "{{ complyctl_workdir }}"
+        state: "{{ item }}"
+        mode: "0750"
+      loop:
+        - absent
+        - directory
+
+    - name: "Config - Create .complytime subdirectory"
       ansible.builtin.file:
         path: "{{ complyctl_workdir }}/.complytime"
         state: directory
@@ -257,27 +266,13 @@
       no_log: true
       register: scan_result
       changed_when: true
-      failed_when: false
+      failed_when: scan_result.rc != 0
 
     - name: "Scan - Display scan results"
       ansible.builtin.debug:
         var: scan_result.stderr_lines
 
-    - name: "Scan - Fail if scan encountered an error (exit code > 1)"
-      ansible.builtin.fail:
-        msg: >-
-          complyctl scan failed with exit code {{ scan_result.rc | default('unknown') }}.
-          Exit code 0 = passed, 1 = non-compliant findings, >1 = error.
-      when: scan_result.rc | default(0) | int > 1
-
-    - name: "Fetch - Create local downloads directory"
-      delegate_to: localhost
-      ansible.builtin.file:
-        path: "{{ local_results_dir }}"
-        state: directory
-        mode: "0750"
-
-    - name: "Fetch - Find scan result files"
+    - name: "Scan - Find assessment artifacts"
       ansible.builtin.find:
         paths: "{{ complyctl_workdir }}"
         patterns:
@@ -286,6 +281,21 @@
           - "report-*.md"
         recurse: true
       register: scan_files
+
+    - name: "Scan - Assert assessment artifacts were created"
+      ansible.builtin.assert:
+        that:
+          - scan_files.matched > 0
+        fail_msg: >-
+          No assessment artifacts found after scan. Expected evaluation-log
+          or report files in {{ complyctl_workdir }}.
+
+    - name: "Fetch - Create local downloads directory"
+      delegate_to: localhost
+      ansible.builtin.file:
+        path: "{{ local_results_dir }}"
+        state: directory
+        mode: "0750"
 
     - name: "Fetch - Retrieve scan results from remote host"
       ansible.builtin.fetch:
