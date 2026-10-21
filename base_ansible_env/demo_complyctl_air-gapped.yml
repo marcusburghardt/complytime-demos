@@ -14,7 +14,7 @@
 #
 # Usage:
 #   export GITHUB_TOKEN=$(gh auth token)
-#   ansible-playbook demo_complyctl_local_oci_import.yml
+#   ansible-playbook demo_complyctl_air-gapped.yml
 
 - name: "Demonstrates complyctl offline import from a local OCI image layout"
   hosts: demo_vm
@@ -322,6 +322,19 @@
     - name: "Incremental - Display re-import output"
       ansible.builtin.debug:
         var: reimport_result.stderr_lines
+
+    - name: "Incremental - Assert unchanged entries were skipped"
+      ansible.builtin.assert:
+        that:
+          - >-
+            'already exists' in reimport_result.stderr | default('')
+            or 'already exists' in reimport_result.stdout | default('')
+            or 'skipping' in reimport_result.stderr | default('') | lower
+            or 'skipping' in reimport_result.stdout | default('') | lower
+        fail_msg: >-
+          Expected re-import to report skipped/unchanged entries.
+          stdout: {{ reimport_result.stdout | default('') }}
+          stderr: {{ reimport_result.stderr | default('') }}
 
     - name: "Summary - Display download directory path"
       ansible.builtin.debug:
