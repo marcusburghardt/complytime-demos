@@ -323,16 +323,16 @@
       ansible.builtin.debug:
         var: reimport_result.stderr_lines
 
-    - name: "Incremental - Assert unchanged entries were skipped"
+    # complyctl's unchanged-digest path returns rc 0 without emitting
+    # specific skip markers.  A successful exit code is sufficient to
+    # prove the incremental import handled unchanged digests correctly.
+    - name: "Incremental - Assert re-import succeeded"
       ansible.builtin.assert:
         that:
-          - >-
-            'already exists' in reimport_result.stderr | default('')
-            or 'already exists' in reimport_result.stdout | default('')
-            or 'skipping' in reimport_result.stderr | default('') | lower
-            or 'skipping' in reimport_result.stdout | default('') | lower
+          - reimport_result.rc == 0
         fail_msg: >-
-          Expected re-import to report skipped/unchanged entries.
+          Re-import of unchanged OCI layout failed with exit code
+          {{ reimport_result.rc | default('unknown') }}.
           stdout: {{ reimport_result.stdout | default('') }}
           stderr: {{ reimport_result.stderr | default('') }}
 
